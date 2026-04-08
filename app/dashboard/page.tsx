@@ -1,5 +1,6 @@
 'use client'
 import ProdukPage from '@/components/ProdukPage'
+import PengaturanToko from '@/components/PengaturanToko'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -612,30 +613,14 @@ export default function Dashboard() {
           )}
 
           {/* ==================== PENGATURAN TOKO ==================== */}
-          {activeMenu === 'pengaturan-toko' && (
-            <div className="fadeUp" style={{ maxWidth: '600px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '24px' }}>
-                <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '20px' }}>🏪 Pengaturan Toko</h3>
-                {activeStore && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {[
-                      { label: 'Nama Toko', value: activeStore.nama_toko, key: 'nama_toko' },
-                      { label: 'Nomor WA Toko', value: activeStore.nomor_wa_toko, key: 'nomor_wa_toko' },
-                      { label: 'Kategori', value: activeStore.kategori, key: 'kategori' },
-                    ].map(field => (
-                      <div key={field.key}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>{field.label}</label>
-                        <input defaultValue={field.value || ''} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '11px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit' }} />
-                      </div>
-                    ))}
-                    <button className="btn" style={{ background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.875rem', fontFamily: 'inherit', cursor: 'pointer', marginTop: '8px' }}>
-                      Simpan Perubahan
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+			{activeMenu === 'pengaturan-toko' && activeStore && (
+			<div className="fadeUp">
+				<PengaturanToko
+				store={activeStore}
+				onUpdate={(updatedStore) => setActiveStore(updatedStore)}
+			/>
+			</div>
+		)}
 
         </div>
       </div>
