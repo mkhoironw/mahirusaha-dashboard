@@ -21,9 +21,24 @@ interface Client {
 
 interface Store {
   id: string
+  client_id: string
   nama_toko: string
   nomor_wa_toko: string
+  wa_phone_number_id: string
+  wa_access_token: string
   kategori: string
+  deskripsi: string
+  jam_buka: string
+  hari_buka: string
+  lokasi: string
+  link_maps: string
+  nomor_admin: string
+  metode_pembayaran: string
+  metode_pengiriman: string
+  pesan_sambutan: string
+  pesan_di_luar_jam: string
+  instruksi_bot: string
+  bahasa_bot: string
   aktif: boolean
   is_trial: boolean
   pesan_terpakai: number
