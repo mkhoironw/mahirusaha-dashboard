@@ -9,8 +9,11 @@ const supabase = createClient(
 
 interface Store {
   id: string
+  client_id: string
   nama_toko: string
   nomor_wa_toko: string
+  wa_phone_number_id: string
+  wa_access_token: string
   kategori: string
   deskripsi: string
   jam_buka: string
@@ -25,6 +28,11 @@ interface Store {
   instruksi_bot: string
   bahasa_bot: string
   aktif: boolean
+  is_trial: boolean
+  pesan_terpakai: number
+  trial_pesan_limit: number
+  batas_pesan_bulan: number
+  onboarding_selesai: boolean
 }
 
 interface PengaturanTokoProps {
