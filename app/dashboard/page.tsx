@@ -1,4 +1,5 @@
 'use client'
+import ProdukPage from '@/components/ProdukPage'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -516,24 +517,8 @@ export default function Dashboard() {
           {/* ==================== PRODUK ==================== */}
           {activeMenu === 'produk' && (
             <div className="fadeUp">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div>
-                  <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>Katalog Produk</h2>
-                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Bot akan menggunakan info ini untuk menjawab pelanggan</p>
-                </div>
-                <button className="btn" style={{ background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.85rem', fontFamily: 'inherit', cursor: 'pointer' }}>
-                  + Tambah Produk
-                </button>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '40px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📦</div>
-                <p style={{ fontWeight: 600, marginBottom: '6px' }}>Belum ada produk</p>
-                <p style={{ fontSize: '0.85rem', marginBottom: '20px' }}>Tambahkan produk agar bot bisa menjelaskan harga dan detail ke pelanggan</p>
-                <button className="btn" style={{ background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '12px 24px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.875rem', fontFamily: 'inherit', cursor: 'pointer' }}>
-                  + Tambah Produk Pertama
-                </button>
-              </div>
-            </div>
+				<ProdukPage storeId={activeStore?.id || ''} />
+			</div>
           )}
 
           {/* ==================== LANGGANAN ==================== */}
