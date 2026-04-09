@@ -1,6 +1,7 @@
 'use client'
 import ProdukPage from '@/components/ProdukPage'
 import PengaturanToko from '@/components/PengaturanToko'
+import LanggananPage from '@/components/LanggananPage'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -538,61 +539,18 @@ export default function Dashboard() {
           )}
 
           {/* ==================== LANGGANAN ==================== */}
-          {activeMenu === 'langganan' && (
-            <div className="fadeUp">
-              <div style={{ marginBottom: '24px' }}>
-                <h2 style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>Paket Langganan</h2>
-                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Kelola paket dan pembayaran kamu</p>
-              </div>
-
-              {/* Status langganan */}
-              <div style={{ background: client?.status === 'trial' ? 'rgba(239,159,39,0.08)' : 'rgba(37,211,102,0.08)', border: `1px solid ${client?.status === 'trial' ? 'rgba(239,159,39,0.25)' : 'rgba(37,211,102,0.25)'}`, borderRadius: '16px', padding: '20px 24px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '4px' }}>
-                    {client?.status === 'trial' ? '🎯 Kamu sedang dalam masa trial' : '✅ Langganan aktif'}
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
-                    {client?.status === 'trial'
-                      ? `Sisa ${100 - (activeStore?.pesan_terpakai || 0)} pesan gratis. Upgrade untuk melanjutkan tanpa batas.`
-                      : `Paket ${getPaketLabel(client?.paket || '')} · Aktif hingga ${client?.tanggal_berakhir ? new Date(client.tanggal_berakhir).toLocaleDateString('id-ID') : '-'}`
-                    }
-                  </div>
-                </div>
-                <div style={{ fontWeight: 800, fontSize: '1.5rem', color: client?.status === 'trial' ? '#EF9F27' : '#25d366' }}>
-                  {getPaketLabel(client?.paket || 'trial')}
-                </div>
-              </div>
-
-              {/* Pilih paket */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px' }}>
-                {[
-                  { kode: 'starter', nama: 'Starter', harga: 99000, toko: 1, pesan: '1.000', fitur: ['1 Toko', '1.000 pesan/bln', 'AI Chatbot', 'Katalog produk', 'Support email'] },
-                  { kode: 'pro', nama: 'Pro', harga: 299000, toko: 3, pesan: '5.000', fitur: ['3 Toko', '5.000 pesan/bln', 'Broadcast promo', 'CRM pelanggan', 'Laporan harian'], popular: true },
-                  { kode: 'bisnis', nama: 'Bisnis', harga: 599000, toko: 10, pesan: '20.000', fitur: ['10 Toko', '20.000 pesan/bln', 'Multi-agent CS', 'API akses', 'Priority support'] },
-                ].map(p => (
-                  <div key={p.kode} style={{ background: p.popular ? 'rgba(37,211,102,0.07)' : 'rgba(255,255,255,0.03)', border: `1px solid ${p.popular ? 'rgba(37,211,102,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: '16px', padding: '20px', position: 'relative' }}>
-                    {p.popular && <div style={{ position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)', background: '#25d366', color: '#070d1a', fontSize: '0.65rem', fontWeight: 800, padding: '3px 12px', borderRadius: '100px', whiteSpace: 'nowrap' }}>TERPOPULER</div>}
-                    <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '6px' }}>{p.nama}</h3>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', marginBottom: '16px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Rp</span>
-                      <span style={{ fontSize: '1.4rem', fontWeight: 800, color: p.popular ? '#25d366' : '#fff' }}>{(p.harga / 1000).toLocaleString('id-ID')}rb</span>
-                      <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>/bln</span>
-                    </div>
-                    <div style={{ marginBottom: '16px' }}>
-                      {p.fitur.map(f => (
-                        <div key={f} style={{ display: 'flex', gap: '7px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.65)', marginBottom: '6px' }}>
-                          <span style={{ color: '#25d366' }}>✓</span> {f}
-                        </div>
-                      ))}
-                    </div>
-                    <button disabled={client?.paket === p.kode} className="btn" style={{ width: '100%', background: client?.paket === p.kode ? 'rgba(255,255,255,0.06)' : p.popular ? 'linear-gradient(135deg,#25d366,#128c7e)' : 'rgba(255,255,255,0.08)', color: client?.paket === p.kode ? 'rgba(255,255,255,0.3)' : '#fff', padding: '11px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit', cursor: client?.paket === p.kode ? 'default' : 'pointer' }}>
-                      {client?.paket === p.kode ? '✓ Paket Saat Ini' : 'Pilih Paket'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+		  {activeMenu === 'langganan' && (
+			<div className="fadeUp">
+				<LanggananPage
+				clientId={client?.id || ''}
+				clientStatus={client?.status || 'trial'}
+				clientPaket={client?.paket || 'trial'}
+				clientTanggalBerakhir={client?.tanggal_berakhir || ''}
+				pesanTerpakai={activeStore?.pesan_terpakai || 0}
+				trialLimit={activeStore?.trial_pesan_limit || 100}
+				/>
+			</div>
+		  )}
 
           {/* ==================== REFERRAL ==================== */}
           {activeMenu === 'referral' && (
