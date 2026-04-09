@@ -2,6 +2,7 @@
 import ProdukPage from '@/components/ProdukPage'
 import PengaturanToko from '@/components/PengaturanToko'
 import LanggananPage from '@/components/LanggananPage'
+import BroadcastPage from '@/components/BroadcastPage'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -192,10 +193,12 @@ export default function Dashboard() {
   const menuItems = [
     { id: 'overview', icon: '📊', label: 'Overview' },
     { id: 'percakapan', icon: '💬', label: 'Percakapan', badge: unreadCount },
+	{ id: 'broadcast', label: 'Broadcast', icon: '📢', badge: 0 },
     { id: 'produk', icon: '📦', label: 'Produk' },
     { id: 'pengaturan-toko', icon: '🏪', label: 'Pengaturan Toko' },
     { id: 'langganan', icon: '💳', label: 'Langganan' },
     { id: 'referral', icon: '🎁', label: 'Referral' },
+	
   ]
 
   if (loading) {
@@ -537,6 +540,17 @@ export default function Dashboard() {
 				<ProdukPage storeId={activeStore?.id || ''} />
 			</div>
           )}
+
+		  {/* ==================== BROADCAST ==================== */}
+		  {activeMenu === 'broadcast' && activeStore && client && (
+			<div className="fadeUp">
+				<BroadcastPage
+				storeId={activeStore.id}
+				clientId={client.id}
+				clientPaket={client.paket}
+				/>
+			</div>
+		  )}
 
           {/* ==================== LANGGANAN ==================== */}
 		  {activeMenu === 'langganan' && (
