@@ -131,7 +131,7 @@ export default function Home() {
 
             {/* Trust badges */}
             <div style={{ marginTop:'38px', display:'flex', alignItems:'center', gap:'24px', flexWrap:'wrap' }}>
-              {[['500+','UMKM Aktif'],['98%','Uptime SLA'],['24/7','AI Support'],['<1s','Response Time']].map(([n,l])=>(
+              {[['10+','UMKM Aktif'],['99%','Uptime SLA'],['24/7','AI Support'],['<2s','Response Time']].map(([n,l])=>(
                 <div key={l}>
                   <div style={{ fontWeight:800, fontSize:'1.1rem', color:'#25d366' }}>{n}</div>
                   <div style={{ fontSize:'.7rem', color:'rgba(255,255,255,.4)', fontWeight:500 }}>{l}</div>
