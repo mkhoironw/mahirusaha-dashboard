@@ -370,7 +370,7 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
       {/* Daftar broadcast */}
       {isPro && (
         <div>
-          <h3 style={{ fontWeight: 600, fontSize: '0.875rem', color: 'rgba(255,255,255,0.6)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.72rem' }}>
+          <h3 style={{ fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.72rem' }}>
             Riwayat Broadcast
           </h3>
 
