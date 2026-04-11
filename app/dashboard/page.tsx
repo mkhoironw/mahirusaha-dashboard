@@ -520,7 +520,7 @@ export default function Dashboard() {
                           { label: 'Nama', value: activeStore.nama_toko },
                           { label: 'Kategori', value: activeStore.kategori || '-' },
                           { label: 'Nomor WA', value: activeStore.nomor_wa_toko },
-                          { label: 'Status Bot', value: activeStore.aktif ? '🟢 Aktif' : '🔴 Mati' },
+                          { label: 'Status Bot', value: client?.status === 'suspend' ? '🔴 Suspended' : activeStore.aktif ? '🟢 Aktif' : '🔴 Mati' },
                         ].map((info, i) => (
                           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', gap: '8px' }}>
                             <span style={{ color: 'rgba(255,255,255,0.4)' }}>{info.label}</span>
