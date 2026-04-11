@@ -278,13 +278,13 @@ export default function Home() {
           <div className="price-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'16px' }}>
             {[
               { kode:'starter', name:'Starter', desc:'Untuk UMKM yang baru mulai', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
-                features:['1 Toko','1.000 pesan/bulan','AI Chatbot 24 jam','Katalog produk','Support email'] },
-              { kode:'pro', name:'Pro', desc:'Untuk bisnis yang ingin tumbuh', color:'rgba(37,211,102,.07)', border:'rgba(37,211,102,.35)', popular:true,
-                features:['3 Toko','5.000 pesan/bulan','Semua fitur Starter','Broadcast promo','CRM pelanggan','Laporan harian'] },
-              { kode:'bisnis', name:'Bisnis', desc:'Untuk bisnis menengah', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
-                features:['10 Toko','20.000 pesan/bulan','Semua fitur Pro','Multi-agent CS','Laporan advanced','Priority support'] },
-              { kode:'enterprise', name:'Enterprise', desc:'Untuk perusahaan besar', color:'rgba(99,102,241,.07)', border:'rgba(99,102,241,.3)', popular:false,
-                features:['Unlimited Toko','Unlimited pesan','White-label','API integration','SLA 99.9%','Dedicated support','Custom integration'] },
+				features:['1 Toko','1.000 pesan/bulan','AI Chatbot 24 jam','Katalog produk','Human Takeover','Referral program','Support email'] },
+			  { kode:'pro', name:'Pro', desc:'Untuk bisnis yang ingin tumbuh', color:'rgba(37,211,102,.07)', border:'rgba(37,211,102,.35)', popular:true,
+				features:['3 Toko','5.000 pesan/bulan','Semua fitur Starter','Broadcast & kampanye','CRM pelanggan','Laporan harian','Priority support'] },
+			  { kode:'bisnis', name:'Bisnis', desc:'Untuk bisnis menengah', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
+				features:['10 Toko','20.000 pesan/bulan','Semua fitur Pro','Multi-agent CS','Analytics & laporan advanced','Dedicated support'] },
+			  { kode:'enterprise', name:'Enterprise', desc:'Untuk perusahaan besar', color:'rgba(99,102,241,.07)', border:'rgba(99,102,241,.3)', popular:false,
+				features:['Unlimited Toko','Unlimited pesan','White-label','API integration','SLA 99.9%','Dedicated support','Custom integration'] },
             ].map((p)=>(
               <div key={p.kode} className="card-h" style={{ background:p.color, border:`1px solid ${p.border}`, borderRadius:'20px', padding:'24px', position:'relative', display:'flex', flexDirection:'column' }}>
                 {p.popular&&<div style={{ position:'absolute', top:'-12px', left:'50%', transform:'translateX(-50%)', background:'#25d366', color:'#070d1a', fontSize:'.68rem', fontWeight:800, padding:'4px 14px', borderRadius:'100px', whiteSpace:'nowrap' }}>TERPOPULER</div>}
