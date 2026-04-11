@@ -423,7 +423,7 @@ export default function Home() {
           
 		  <a href="/privasi" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Privasi</a>
 		  <a href="/syarat" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Syarat Layanan</a>
-		  <a href="mailto:hello@mahirusaha.com" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Hubungi Kami</a>
+		  <a href="#enterprise" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Hubungi Kami</a>
 		
 		</div>
       </footer>
