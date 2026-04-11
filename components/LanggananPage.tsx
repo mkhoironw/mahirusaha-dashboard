@@ -197,7 +197,7 @@ export default function LanggananPage({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '16px', marginBottom: '24px' }}>
         {pakets.map(p => {
           const harga = billing === 'tahunan' ? p.harga_tahunan : p.harga_bulanan
-          const isCurrentPaket = clientPaket === p.kode
+          const isCurrentPaket = clientPaket === p.kode && clientStatus !== 'suspend'
           const isLoading = loading === p.kode
 
           return (
