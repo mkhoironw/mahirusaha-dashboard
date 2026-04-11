@@ -10,6 +10,7 @@ interface LanggananPageProps {
   trialLimit: number
 }
 
+
 export default function LanggananPage({
   clientId,
   clientStatus,
