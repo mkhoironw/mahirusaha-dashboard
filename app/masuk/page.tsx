@@ -45,11 +45,12 @@ export default function Masuk() {
       }
 
       // Cek status akun
-      if (client.status === 'suspend') {
-        setError('Akun kamu disuspend. Hubungi support@mahirusaha.com')
-        setLoading(false)
-        return
-      }
+	  // JANGAN blokir suspend — biarkan login agar bisa perpanjang
+	  if (client.status === 'nonaktif') {
+		setError('Akun kamu tidak aktif. Hubungi support@mahirusaha.com')
+		setLoading(false)
+		return
+	  }
 
       // Simpan session di localStorage
       localStorage.setItem('mahirusaha_client', JSON.stringify({
