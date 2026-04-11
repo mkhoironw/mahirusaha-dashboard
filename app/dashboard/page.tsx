@@ -313,12 +313,29 @@ export default function Dashboard() {
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: getStatusColor(client?.status || '') }}/>
               <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>{getPaketLabel(client?.paket || 'trial')}</span>
             </div>
-            {client?.status === 'trial' && (
-              <a href="#" onClick={() => setActiveMenu('langganan')} style={{ background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '7px 16px', borderRadius: '100px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>
-                Upgrade ↑
-              </a>
-            )}
-          </div>
+            
+			{(client?.status === 'trial' || client?.status === 'suspend') && (
+  
+				<a href="#"
+				onClick={() => setActiveMenu('langganan')}
+				style={{
+					background: client?.status === 'suspend'
+					? 'linear-gradient(135deg,#EF4444,#B91C1C)'
+					: 'linear-gradient(135deg,#25d366,#128c7e)',
+					color: '#fff',
+					padding: '7px 16px',
+					borderRadius: '100px',
+					textDecoration: 'none',
+					fontWeight: 700,
+					fontSize: '0.78rem'
+				}}
+				>
+			{client?.status === 'suspend' ? 'Perpanjang ↑' : 'Upgrade ↑'}
+			</a>
+			)}
+          
+		  
+		  </div>
         </div>
 
         <div style={{ padding: '24px 28px' }}>
@@ -328,6 +345,26 @@ export default function Dashboard() {
             <div className="fadeUp">
 
               {/* Kuota warning */}
+			  
+			  {client?.status === 'suspend' && (
+				<div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+				<div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+				<span style={{ fontSize: '1.5rem' }}>🔴</span>
+				<div>
+				<div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#EF4444', marginBottom: '4px' }}>Akun kamu disuspend</div>
+				<div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>Masa aktif langganan sudah berakhir. Bot WhatsApp tidak aktif sementara. Perpanjang sekarang untuk mengaktifkan kembali.</div>
+				</div>
+				</div>
+				<button
+				onClick={() => setActiveMenu('langganan')}
+				style={{ background: 'linear-gradient(135deg,#EF4444,#B91C1C)', color: '#fff', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+			>
+			Perpanjang Sekarang →
+			</button>
+			</div>
+			)}
+			  
+			  
               {kuotaWarning && (
                 <div style={{ background: 'rgba(239,159,39,0.1)', border: '1px solid rgba(239,159,39,0.3)', borderRadius: '14px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
