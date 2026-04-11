@@ -3,6 +3,7 @@ import ProdukPage from '@/components/ProdukPage'
 import PengaturanToko from '@/components/PengaturanToko'
 import LanggananPage from '@/components/LanggananPage'
 import BroadcastPage from '@/components/BroadcastPage'
+import AnalyticsPage from '@/components/AnalyticsPage'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -194,6 +195,7 @@ export default function Dashboard() {
     { id: 'overview', icon: '📊', label: 'Overview' },
     { id: 'percakapan', icon: '💬', label: 'Percakapan', badge: unreadCount },
 	{ id: 'broadcast', label: 'Broadcast', icon: '📢', badge: 0 },
+	{ id: 'analytics', icon: '📊', label: 'Analytics' },
     { id: 'produk', icon: '📦', label: 'Produk' },
     { id: 'pengaturan-toko', icon: '🏪', label: 'Pengaturan Toko' },
     { id: 'langganan', icon: '💳', label: 'Langganan' },
@@ -588,6 +590,16 @@ export default function Dashboard() {
 				/>
 			</div>
 		  )}
+
+		{/* ==================== ANALYTICS ==================== */}
+		{activeMenu === 'analytics' && activeStore && client && (
+			<div className="fadeUp">
+			<AnalyticsPage
+			storeId={activeStore.id}
+			clientPaket={client.paket}
+			/>
+		</div>
+		)}
 
           {/* ==================== LANGGANAN ==================== */}
 		  {activeMenu === 'langganan' && (
