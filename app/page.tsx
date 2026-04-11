@@ -420,10 +420,12 @@ export default function Home() {
         </div>
         <p style={{ color:'rgba(255,255,255,.25)', fontSize:'.75rem' }}>© 2026 Mahirusaha. All rights reserved.</p>
         <div style={{ display:'flex', gap:'20px' }}>
-          {['Privasi','Syarat Layanan','Hubungi Kami'].map(t=>(
-            <a key={t} href="#" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>{t}</a>
-          ))}
-        </div>
+          
+		  <a href="/privasi" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Privasi</a>
+		  <a href="/syarat" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Syarat Layanan</a>
+		  <a href="mailto:hello@mahirusaha.com" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Hubungi Kami</a>
+		
+		</div>
       </footer>
     </main>
   )
