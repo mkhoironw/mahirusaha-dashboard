@@ -30,10 +30,10 @@ export default function Home() {
   }
 
   const prices = {
-    starter: { bulanan: 99000, tahunan: 79000 },
-    pro: { bulanan: 299000, tahunan: 239000 },
-    bisnis: { bulanan: 599000, tahunan: 479000 },
-  }
+  starter: { bulanan: 99000, tahunan: 74000 },
+  pro: { bulanan: 299000, tahunan: 224000 },
+  bisnis: { bulanan: 699000, tahunan: 524000 },
+}
 
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 
