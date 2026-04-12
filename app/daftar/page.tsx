@@ -26,7 +26,8 @@ export default function Daftar() {
     jam_buka: '',
     hari_buka: '',
     lokasi: '',
-    nomor_admin: '',
+    kode_referral: '',
+	nomor_admin: '',
     metode_pembayaran: '',
     metode_pengiriman: '',
     pesan_sambutan: '',
@@ -248,6 +249,21 @@ export default function Daftar() {
                   ⚠️ {error}
                 </div>
               )}
+
+			<div>
+				<label style={labelStyle}>Kode referral <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(opsional)</span></label>
+				<input
+				style={inputStyle}
+				placeholder="Contoh: MHRABC123"
+				value={form.kode_referral}
+				onChange={e => update('kode_referral', e.target.value.toUpperCase())}
+				/>
+				<span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
+					Dapat kode dari teman? Masukkan di sini untuk dapat diskon 10%
+				</span>
+			</div>	
+
+
 
               <button type="submit" style={{ background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '14px', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px' }}>
                 Lanjut → Info Toko
