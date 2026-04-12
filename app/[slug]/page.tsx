@@ -133,7 +133,7 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
             </a>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
             {produkList.map((produk: any) => (
               <div
                 key={produk.id}
