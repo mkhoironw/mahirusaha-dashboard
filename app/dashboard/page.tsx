@@ -49,6 +49,7 @@ interface Store {
   trial_pesan_limit: number
   batas_pesan_bulan: number
   onboarding_selesai: boolean
+  slug: string
 }
 
 interface Conversation {
