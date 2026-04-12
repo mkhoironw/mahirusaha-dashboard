@@ -92,18 +92,14 @@ export async function POST(request: NextRequest) {
       
 	  
 	  item_details: [
-	  {
-		id: paket,
-		price: hargaFinal,  // ← ganti
-		quantity: 1,
-		name: `Mahirusaha ${packageData.nama} - ${periode === 'tahunan' ? '1 Tahun' : '1 Bulan'}`,
-	  },
-		...(diskonReferral > 0 ? [{
-		id: 'referral_discount',
-		price: -diskonReferral,
-		quantity: 1,
-		name: 'Diskon Referral 10%',
-	}] : []),
+		{
+			id: paket,
+			price: hargaFinal,
+			quantity: 1,
+			name: diskonReferral > 0 
+			? `Mahirusaha ${packageData.nama} - ${periode === 'tahunan' ? '1 Tahun' : '1 Bulan'} (Diskon Referral 10%)`
+			: `Mahirusaha ${packageData.nama} - ${periode === 'tahunan' ? '1 Tahun' : '1 Bulan'}`,
+		},
 	],
       
 	  
@@ -137,31 +133,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Simpan subscription pending ke database
-    await supabase.from('subscriptions').insert({
-      client_id,
-      package_id: packageData.id,
-      paket,
-      periode,
-      harga_normal: harga,
-      diskon_referral: 0,
-      diskon_promo: diskon,
-      harga_bayar: harga,
-      status_bayar: 'pending',
-      id_transaksi: orderId,
-      midtrans_response: midtransData,
-      tanggal_mulai: new Date().toISOString(),
-      tanggal_berakhir: periode === 'tahunan'
-        ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    })
+    /// Simpan subscription pending ke database
+	await supabase.from('subscriptions').insert({
+	client_id,
+	package_id: packageData.id,
+	paket,
+	periode,
+	harga_normal: harga,
+	diskon_referral: diskonReferral,
+	diskon_promo: 0,
+	harga_bayar: hargaFinal,
+	status_bayar: 'pending',
+	id_transaksi: orderId,
+	midtrans_response: midtransData,
+	tanggal_mulai: new Date().toISOString(),
+	tanggal_berakhir: periode === 'tahunan'
+		? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+		: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+	})
 
-    return NextResponse.json({
-      success: true,
-      token: midtransData.token,
-      redirect_url: midtransData.redirect_url,
-      order_id: orderId,
-    })
+	return NextResponse.json({
+	success: true,
+	token: midtransData.token,
+	redirect_url: midtransData.redirect_url,
+	order_id: orderId,
+	diskon_referral: diskonReferral,
+	})
 
   } catch (error) {
     console.error('Error:', error)
