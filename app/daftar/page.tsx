@@ -20,6 +20,7 @@ export default function Daftar() {
     nomor_wa_pemilik: '',
     // Step 2 - Toko
     nama_toko: '',
+	slug: '',
     nomor_wa_toko: '',
     kategori: '',
     deskripsi: '',
@@ -89,6 +90,7 @@ export default function Daftar() {
         .insert({
           client_id: client.id,
           nama_toko: form.nama_toko,
+		  slug: form.slug,
           nomor_wa_toko: form.nomor_wa_toko.replace(/\D/g, ''),
           kategori: form.kategori,
           deskripsi: form.deskripsi,
@@ -317,11 +319,30 @@ export default function Daftar() {
               <div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '12px', padding: '16px', marginBottom: '4px' }}>
                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#25d366', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Informasi Utama</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div>
+                  
+				  <div>
                     <label style={labelStyle}>Nama toko / bisnis *</label>
                     <input required style={inputStyle} placeholder="Warung Makan Bu Sari" value={form.nama_toko} onChange={e => update('nama_toko', e.target.value)} />
                   </div>
-                  <div>
+                  
+				  <div>
+					<label style={labelStyle}>Link Toko Online *</label>
+					<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+					<span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>mahirusaha.com/</span>
+					<input
+						required
+						style={inputStyle}
+						placeholder="nama-toko-kamu"
+						value={form.slug || ''}
+						onChange={e => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/\s+/g, '-'))}
+					/>
+				</div>
+					<span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
+					Hanya huruf kecil, angka, dan tanda (-). Contoh: warung-bu-sari
+					</span>
+				</div>
+				  
+				  <div>
                     <label style={labelStyle}>Nomor WhatsApp toko *</label>
                     <input required style={inputStyle} placeholder="628xxxxxxxxxx (format internasional)" value={form.nomor_wa_toko} onChange={e => update('nomor_wa_toko', e.target.value)} />
                     <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>Nomor WA yang akan dipakai bot. Harus sudah terdaftar di WhatsApp.</span>
