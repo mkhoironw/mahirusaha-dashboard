@@ -86,17 +86,20 @@ export default function Dashboard() {
   const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
+    // Cek session
     const session = localStorage.getItem('mahirusaha_client')
     if (!session) {
       window.location.href = '/masuk'
       return
     }
+
     const clientData = JSON.parse(session)
     loadDashboard(clientData.id)
   }, [])
 
   const loadDashboard = async (clientId: string) => {
     try {
+      // Load client data
       const { data: clientData } = await supabase
         .from('clients')
         .select('*')
@@ -108,8 +111,10 @@ export default function Dashboard() {
         window.location.href = '/masuk'
         return
       }
+
       setClient(clientData)
 
+      // Load stores
       const { data: storesData } = await supabase
         .from('stores')
         .select('*')
@@ -120,6 +125,7 @@ export default function Dashboard() {
         setStores(storesData)
         setActiveStore(storesData[0])
 
+        // Load conversations untuk toko pertama
         const { data: convData } = await supabase
           .from('conversations')
           .select('*')
@@ -130,6 +136,7 @@ export default function Dashboard() {
         setConversations(convData || [])
         setUnreadCount((convData || []).filter((c: Conversation) => !c.dibaca).length)
 
+        // Load total produk
         const { count } = await supabase
           .from('products')
           .select('*', { count: 'exact', head: true })
@@ -138,6 +145,7 @@ export default function Dashboard() {
         setTotalProduk(count || 0)
       }
 
+      // Load onboarding
       const { data: onboardingData } = await supabase
         .from('onboarding_steps')
         .select('*')
@@ -145,6 +153,7 @@ export default function Dashboard() {
         .single()
 
       setOnboarding(onboardingData)
+
     } catch (err) {
       console.error(err)
     } finally {
@@ -161,6 +170,13 @@ export default function Dashboard() {
     if (status === 'aktif') return '#25d366'
     if (status === 'trial') return '#EF9F27'
     return '#EF4444'
+  }
+
+  const getStatusLabel = (status: string) => {
+    if (status === 'aktif') return 'Aktif'
+    if (status === 'trial') return 'Trial'
+    if (status === 'nonaktif') return 'Nonaktif'
+    return 'Suspend'
   }
 
   const getPaketLabel = (paket: string) => {
@@ -180,13 +196,14 @@ export default function Dashboard() {
   const menuItems = [
     { id: 'overview', icon: '📊', label: 'Overview' },
     { id: 'percakapan', icon: '💬', label: 'Percakapan', badge: unreadCount },
-    { id: 'broadcast', icon: '📢', label: 'Broadcast', badge: 0 },
-    { id: 'analytics', icon: '📈', label: 'Analytics' },
-    { id: 'crm', icon: '👥', label: 'CRM' },
+	{ id: 'broadcast', label: 'Broadcast', icon: '📢', badge: 0 },
+	{ id: 'analytics', icon: '📊', label: 'Analytics' },
+	{ id: 'crm', icon: '👥', label: 'CRM' },
     { id: 'produk', icon: '📦', label: 'Produk' },
     { id: 'pengaturan-toko', icon: '🏪', label: 'Pengaturan Toko' },
     { id: 'langganan', icon: '💳', label: 'Langganan' },
     { id: 'referral', icon: '🎁', label: 'Referral' },
+	
   ]
 
   if (loading) {
@@ -225,6 +242,7 @@ export default function Dashboard() {
 
       {/* SIDEBAR */}
       <div style={{ width: sidebarOpen ? '240px' : '64px', background: 'rgba(255,255,255,0.02)', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', transition: 'width 0.3s ease', overflow: 'hidden', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
+        {/* Logo */}
         <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
             <div style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg,#25d366,#128c7e)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>💬</div>
@@ -235,6 +253,7 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* Store selector */}
         {sidebarOpen && stores.length > 0 && (
           <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Toko Aktif</div>
@@ -248,6 +267,7 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Menu */}
         <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
           {menuItems.map(item => (
             <div key={item.id} className="menu-item" onClick={() => setActiveMenu(item.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 10px', borderRadius: '10px', marginBottom: '2px', background: activeMenu === item.id ? 'rgba(37,211,102,0.1)' : 'transparent', border: activeMenu === item.id ? '1px solid rgba(37,211,102,0.2)' : '1px solid transparent', position: 'relative' }}>
@@ -264,6 +284,7 @@ export default function Dashboard() {
           ))}
         </nav>
 
+        {/* User info + logout */}
         <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {sidebarOpen && client && (
             <div style={{ padding: '10px 10px', marginBottom: '4px' }}>
@@ -280,6 +301,7 @@ export default function Dashboard() {
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, overflowY: 'auto', height: '100vh' }}>
+
         {/* Top bar */}
         <div style={{ padding: '16px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(7,13,26,0.8)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 10 }}>
           <div>
@@ -291,30 +313,34 @@ export default function Dashboard() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Status paket */}
             <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '100px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: getStatusColor(client?.status || '') }}/>
               <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>{getPaketLabel(client?.paket || 'trial')}</span>
             </div>
-            {(client?.status === 'trial' || client?.status === 'suspend') && (
-              <a
-                href="#"
-                onClick={() => setActiveMenu('langganan')}
-                style={{
-                  background: client?.status === 'suspend'
-                    ? 'linear-gradient(135deg,#EF4444,#B91C1C)'
-                    : 'linear-gradient(135deg,#25d366,#128c7e)',
-                  color: '#fff',
-                  padding: '7px 16px',
-                  borderRadius: '100px',
-                  textDecoration: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.78rem'
-                }}
-              >
-                {client?.status === 'suspend' ? 'Perpanjang ↑' : 'Upgrade ↑'}
-              </a>
-            )}
-          </div>
+            
+			{(client?.status === 'trial' || client?.status === 'suspend') && (
+  
+				<a href="#"
+				onClick={() => setActiveMenu('langganan')}
+				style={{
+					background: client?.status === 'suspend'
+					? 'linear-gradient(135deg,#EF4444,#B91C1C)'
+					: 'linear-gradient(135deg,#25d366,#128c7e)',
+					color: '#fff',
+					padding: '7px 16px',
+					borderRadius: '100px',
+					textDecoration: 'none',
+					fontWeight: 700,
+					fontSize: '0.78rem'
+				}}
+				>
+			{client?.status === 'suspend' ? 'Perpanjang ↑' : 'Upgrade ↑'}
+			</a>
+			)}
+          
+		  
+		  </div>
         </div>
 
         <div style={{ padding: '24px 28px' }}>
@@ -323,26 +349,27 @@ export default function Dashboard() {
           {activeMenu === 'overview' && (
             <div className="fadeUp">
 
-              {/* Banner suspend */}
-              {client?.status === 'suspend' && (
-                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '1.5rem' }}>🔴</span>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#EF4444', marginBottom: '4px' }}>Akun kamu disuspend</div>
-                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>Masa aktif langganan sudah berakhir. Bot WhatsApp tidak aktif sementara. Perpanjang sekarang untuk mengaktifkan kembali.</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setActiveMenu('langganan')}
-                    style={{ background: 'linear-gradient(135deg,#EF4444,#B91C1C)', color: '#fff', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-                  >
-                    Perpanjang Sekarang →
-                  </button>
-                </div>
-              )}
-
               {/* Kuota warning */}
+			  
+			  {client?.status === 'suspend' && (
+				<div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+				<div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+				<span style={{ fontSize: '1.5rem' }}>🔴</span>
+				<div>
+				<div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#EF4444', marginBottom: '4px' }}>Akun kamu disuspend</div>
+				<div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>Masa aktif langganan sudah berakhir. Bot WhatsApp tidak aktif sementara. Perpanjang sekarang untuk mengaktifkan kembali.</div>
+				</div>
+				</div>
+				<button
+				onClick={() => setActiveMenu('langganan')}
+				style={{ background: 'linear-gradient(135deg,#EF4444,#B91C1C)', color: '#fff', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+			>
+			Perpanjang Sekarang →
+			</button>
+			</div>
+			)}
+			  
+			  
               {kuotaWarning && (
                 <div style={{ background: 'rgba(239,159,39,0.1)', border: '1px solid rgba(239,159,39,0.3)', borderRadius: '14px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -391,10 +418,34 @@ export default function Dashboard() {
               {/* Stats cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '24px' }}>
                 {[
-                  { icon: '💬', label: 'Pesan Terpakai', value: `${activeStore?.pesan_terpakai || 0}`, sub: `dari ${activeStore?.is_trial ? activeStore.trial_pesan_limit : activeStore?.batas_pesan_bulan || 0}`, color: '#25d366', progress: kuotaPersen },
-                  { icon: '📦', label: 'Total Produk', value: totalProduk.toString(), sub: 'produk terdaftar', color: '#818cf8', progress: null },
-                  { icon: '👥', label: 'Percakapan', value: conversations.length.toString(), sub: `${unreadCount} belum dibaca`, color: '#EF9F27', progress: null },
-                  { icon: '🤖', label: 'Status Bot', value: client?.status === 'suspend' ? 'Suspended' : activeStore?.aktif ? 'Aktif' : 'Mati', sub: activeStore?.is_trial ? `Trial — ${100 - (activeStore?.pesan_terpakai || 0)} sisa` : 'Paket ' + getPaketLabel(client?.paket || ''), color: client?.status === 'suspend' ? '#EF4444' : activeStore?.aktif ? '#25d366' : '#EF4444', progress: null },
+                  {
+                    icon: '💬', label: 'Pesan Terpakai',
+                    value: `${activeStore?.pesan_terpakai || 0}`,
+                    sub: `dari ${activeStore?.is_trial ? activeStore.trial_pesan_limit : activeStore?.batas_pesan_bulan || 0}`,
+                    color: '#25d366',
+                    progress: kuotaPersen
+                  },
+                  {
+                    icon: '📦', label: 'Total Produk',
+                    value: totalProduk.toString(),
+                    sub: 'produk terdaftar',
+                    color: '#818cf8',
+                    progress: null
+                  },
+                  {
+                    icon: '👥', label: 'Percakapan',
+                    value: conversations.length.toString(),
+                    sub: `${unreadCount} belum dibaca`,
+                    color: '#EF9F27',
+                    progress: null
+                  },
+                  {
+                    icon: '🤖', label: 'Status Bot',
+                    value: activeStore?.aktif ? 'Aktif' : 'Mati',
+                    sub: activeStore?.is_trial ? `Trial — ${100 - (activeStore?.pesan_terpakai || 0)} sisa` : 'Paket ' + getPaketLabel(client?.paket || ''),
+                    color: activeStore?.aktif ? '#25d366' : '#EF4444',
+                    progress: null
+                  },
                 ].map((s, i) => (
                   <div key={i} className="card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '18px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -413,10 +464,10 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Grid 2 kolom */}
+              {/* Recent conversations + Quick actions */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '16px' }}>
 
-                {/* Kolom kiri - Percakapan Terbaru */}
+                {/* Recent conversations */}
                 <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontWeight: 700, fontSize: '0.9rem' }}>💬 Percakapan Terbaru</h3>
@@ -445,49 +496,49 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Kolom kanan */}
+                {/* Link Toko Online */}
+				{activeStore?.slug && (
+					<div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '16px', padding: '18px', marginBottom: '14px' }}>
+					<h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '12px' }}>🛍️ Link Toko Online Kamu</h3>
+					<div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
+					<span style={{ fontSize: '0.82rem', color: '#25d366', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+					mahirusaha.com/{activeStore.slug}
+				</span>
+				<button
+					onClick={() => {
+					navigator.clipboard.writeText(`https://mahirusaha.com/${activeStore.slug}`)
+					alert('Link toko berhasil disalin!')
+					}}
+					style={{ background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
+				>
+				📋 Salin
+				</button>
+				</div>
+				<div style={{ display: 'flex', gap: '8px' }}>
+      
+					<a href={`https://mahirusaha.com/${activeStore.slug}`}
+					target="_blank"
+					rel="noopener noreferrer"
+					style={{ flex: 1, display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.8rem' }}
+					>
+					🔗 Buka Toko
+					</a>
+      
+					<a href={`https://wa.me/?text=Yuk belanja di toko kami! ${encodeURIComponent(`https://mahirusaha.com/${activeStore.slug}`)}`}
+					target="_blank"
+					rel="noopener noreferrer"
+					style={{ flex: 1, display: 'block', textAlign: 'center', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.8rem' }}
+					>
+					📤 Share WA
+					</a>
+				</div>
+				</div>
+			)}
+				
+				
+				
+				{/* Quick actions */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-                  {/* Link Toko Online */}
-                  {activeStore?.slug && (
-                    <div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '16px', padding: '18px' }}>
-                      <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '12px' }}>🛍️ Link Toko Online Kamu</h3>
-                      <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '0.78rem', color: '#25d366', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          mahirusaha.com/{activeStore.slug}
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`https://mahirusaha.com/${activeStore.slug}`)
-                            alert('Link toko berhasil disalin!')
-                          }}
-                          style={{ background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}
-                        >
-                          📋 Salin
-                        </button>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <a
-                          href={`https://mahirusaha.com/${activeStore.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ flex: 1, display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}
-                        >
-                          🔗 Buka Toko
-                        </a>
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent(`Yuk belanja di toko kami! https://mahirusaha.com/${activeStore.slug}`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ flex: 1, display: 'block', textAlign: 'center', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}
-                        >
-                          📤 Share WA
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Aksi Cepat */}
                   <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '18px' }}>
                     <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>⚡ Aksi Cepat</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -506,7 +557,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Info Toko */}
+                  {/* Info toko */}
                   {activeStore && (
                     <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '18px' }}>
                       <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>🏪 Info Toko</h3>
@@ -525,7 +576,6 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-
                 </div>
               </div>
             </div>
@@ -570,54 +620,54 @@ export default function Dashboard() {
           {/* ==================== PRODUK ==================== */}
           {activeMenu === 'produk' && (
             <div className="fadeUp">
-              <ProdukPage storeId={activeStore?.id || ''} />
-            </div>
+				<ProdukPage storeId={activeStore?.id || ''} />
+			</div>
           )}
 
-          {/* ==================== BROADCAST ==================== */}
-          {activeMenu === 'broadcast' && activeStore && client && (
-            <div className="fadeUp">
-              <BroadcastPage
-                storeId={activeStore.id}
-                clientId={client.id}
-                clientPaket={client.paket}
-              />
-            </div>
-          )}
+		  {/* ==================== BROADCAST ==================== */}
+		  {activeMenu === 'broadcast' && activeStore && client && (
+			<div className="fadeUp">
+				<BroadcastPage
+				storeId={activeStore.id}
+				clientId={client.id}
+				clientPaket={client.paket}
+				/>
+			</div>
+		  )}
 
-          {/* ==================== ANALYTICS ==================== */}
-          {activeMenu === 'analytics' && activeStore && client && (
-            <div className="fadeUp">
-              <AnalyticsPage
-                storeId={activeStore.id}
-                clientPaket={client.paket}
-              />
-            </div>
-          )}
-
-          {/* ==================== CRM ==================== */}
-          {activeMenu === 'crm' && activeStore && client && (
-            <div className="fadeUp">
-              <CRMPage
-                storeId={activeStore.id}
-                clientPaket={client.paket}
-              />
-            </div>
-          )}
+		{/* ==================== ANALYTICS ==================== */}
+		{activeMenu === 'analytics' && activeStore && client && (
+			<div className="fadeUp">
+			<AnalyticsPage
+			storeId={activeStore.id}
+			clientPaket={client.paket}
+			/>
+		</div>
+		)}
+		
+		{/* ==================== CRM ==================== */}
+		{activeMenu === 'crm' && activeStore && client && (
+			<div className="fadeUp">
+			<CRMPage
+			storeId={activeStore.id}
+			clientPaket={client.paket}
+			/>
+		</div>
+		)}
 
           {/* ==================== LANGGANAN ==================== */}
-          {activeMenu === 'langganan' && (
-            <div className="fadeUp">
-              <LanggananPage
-                clientId={client?.id || ''}
-                clientStatus={client?.status || 'trial'}
-                clientPaket={client?.paket || 'trial'}
-                clientTanggalBerakhir={client?.tanggal_berakhir || ''}
-                pesanTerpakai={activeStore?.pesan_terpakai || 0}
-                trialLimit={activeStore?.trial_pesan_limit || 100}
-              />
-            </div>
-          )}
+		  {activeMenu === 'langganan' && (
+			<div className="fadeUp">
+				<LanggananPage
+				clientId={client?.id || ''}
+				clientStatus={client?.status || 'trial'}
+				clientPaket={client?.paket || 'trial'}
+				clientTanggalBerakhir={client?.tanggal_berakhir || ''}
+				pesanTerpakai={activeStore?.pesan_terpakai || 0}
+				trialLimit={activeStore?.trial_pesan_limit || 100}
+				/>
+			</div>
+		  )}
 
           {/* ==================== REFERRAL ==================== */}
           {activeMenu === 'referral' && (
@@ -653,14 +703,14 @@ export default function Dashboard() {
           )}
 
           {/* ==================== PENGATURAN TOKO ==================== */}
-          {activeMenu === 'pengaturan-toko' && activeStore && (
-            <div className="fadeUp">
-              <PengaturanToko
-                store={activeStore}
-                onUpdate={(updatedStore) => setActiveStore(updatedStore)}
-              />
-            </div>
-          )}
+			{activeMenu === 'pengaturan-toko' && activeStore && (
+			<div className="fadeUp">
+				<PengaturanToko
+				store={activeStore}
+				onUpdate={(updatedStore) => setActiveStore(updatedStore)}
+			/>
+			</div>
+		)}
 
         </div>
       </div>
