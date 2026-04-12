@@ -7,7 +7,7 @@ const supabase = createClient(
 )
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 // Halaman yang sudah ada — jangan ditimpa
@@ -17,8 +17,8 @@ const RESERVED_SLUGS = [
 ]
 
 export default async function TokoPage({ params }: Props) {
-  const { slug } = params
-
+  const { slug } = await params
+  
   // Cek apakah slug adalah halaman reserved
   if (RESERVED_SLUGS.includes(slug)) {
     notFound()
