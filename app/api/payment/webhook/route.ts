@@ -104,6 +104,13 @@ export async function POST(request: NextRequest) {
         status: 'terkirim',
       })
 
+	// Tandai referral sudah diklaim
+	await supabase
+	.from('referrals')
+	.update({ sudah_diklaim: true, diklaim_at: new Date().toISOString() })
+	.eq('referred_id', subscription.client_id)
+	.eq('sudah_diklaim', false)
+		
       console.log(`✅ Pembayaran berhasil untuk klien ${subscription.client_id}`)
     }
 

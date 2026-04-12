@@ -51,6 +51,24 @@ export async function POST(request: NextRequest) {
     const harga = periode === 'tahunan'
       ? packageData.harga_tahunan
       : packageData.harga_bulanan
+	  
+	// Cek apakah klien punya diskon referral
+	let hargaFinal = harga
+	let diskonReferral = 0
+
+	const { data: referralData } = await supabase
+	.from('referrals')
+	.select('*')
+	.eq('referred_id', client_id)
+	.eq('status', 'aktif')
+	.eq('sudah_diklaim', false)
+	.single()
+
+	if (referralData) {
+	// Diskon 10% untuk pembayaran pertama
+	diskonReferral = Math.round(harga * 0.1)
+	hargaFinal = harga - diskonReferral
+	}
 
     const diskon = periode === 'tahunan' ? packageData.diskon_tahunan_persen : 0
 
@@ -59,27 +77,37 @@ export async function POST(request: NextRequest) {
 
     // Buat transaksi di Midtrans
     const midtransPayload = {
-      transaction_details: {
-        order_id: orderId,
-        gross_amount: harga,
-      },
-      credit_card: {
-        secure: true,
-      },
+		transaction_details: {
+		order_id: orderId,
+		gross_amount: hargaFinal,
+		},
+	credit_card: {
+		secure: true,
+	},
       customer_details: {
         first_name: client.nama_pemilik,
         email: client.email,
         phone: client.nomor_wa_pemilik || '',
       },
-      item_details: [
-        {
-          id: paket,
-          price: harga,
-          quantity: 1,
-          name: `Mahirusaha ${packageData.nama} - ${periode === 'tahunan' ? '1 Tahun' : '1 Bulan'}`,
-        },
-      ],
-      callbacks: {
+      
+	  
+	  item_details: [
+	  {
+		id: paket,
+		price: hargaFinal,  // ← ganti
+		quantity: 1,
+		name: `Mahirusaha ${packageData.nama} - ${periode === 'tahunan' ? '1 Tahun' : '1 Bulan'}`,
+	  },
+		...(diskonReferral > 0 ? [{
+		id: 'referral_discount',
+		price: -diskonReferral,
+		quantity: 1,
+		name: 'Diskon Referral 10%',
+	}] : []),
+	],
+      
+	  
+	  callbacks: {
         finish: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
         error: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=error`,
         pending: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=pending`,
