@@ -113,7 +113,33 @@ export default function Daftar() {
         return
       }
 
-      // Buat onboarding steps
+      // Proses kode referral jika ada
+	  if (form.kode_referral) {
+		const { data: referrer } = await supabase
+		.from('clients')
+		.select('id')
+		.eq('referral_code', form.kode_referral.toUpperCase())
+		.single()
+
+	  if (referrer) {
+		await supabase.from('referrals').insert({
+		referrer_id: referrer.id,
+		referred_id: client.id,
+		status: 'aktif',
+		diskon_referrer: 10,
+		diskon_referred: 10,
+		sudah_diklaim: false,
+		})
+
+		await supabase
+		.from('clients')
+		.update({ referred_by: referrer.id })
+		.eq('id', client.id)
+		}
+	  }
+	  
+	  
+	  // Buat onboarding steps
       await supabase.from('onboarding_steps').insert({
         client_id: client.id,
         step_daftar: true,
