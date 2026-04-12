@@ -495,7 +495,48 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Quick actions */}
+                {/* Link Toko Online */}
+				{activeStore?.slug && (
+					<div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '16px', padding: '18px', marginBottom: '14px' }}>
+					<h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '12px' }}>🛍️ Link Toko Online Kamu</h3>
+					<div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
+					<span style={{ fontSize: '0.82rem', color: '#25d366', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+					mahirusaha.com/{activeStore.slug}
+				</span>
+				<button
+					onClick={() => {
+					navigator.clipboard.writeText(`https://mahirusaha.com/${activeStore.slug}`)
+					alert('Link toko berhasil disalin!')
+					}}
+					style={{ background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
+				>
+				📋 Salin
+				</button>
+				</div>
+				<div style={{ display: 'flex', gap: '8px' }}>
+      
+					href={`https://mahirusaha.com/${activeStore.slug}`}
+					target="_blank"
+					rel="noopener noreferrer"
+					style={{ flex: 1, display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.8rem' }}
+					>
+					🔗 Buka Toko
+					</a>
+      
+					href={`https://wa.me/?text=Yuk belanja di toko kami! ${encodeURIComponent(`https://mahirusaha.com/${activeStore.slug}`)}`}
+					target="_blank"
+					rel="noopener noreferrer"
+					style={{ flex: 1, display: 'block', textAlign: 'center', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.8rem' }}
+					>
+					📤 Share WA
+					</a>
+				</div>
+				</div>
+			)}
+				
+				
+				
+				{/* Quick actions */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '18px' }}>
                     <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>⚡ Aksi Cepat</h3>
