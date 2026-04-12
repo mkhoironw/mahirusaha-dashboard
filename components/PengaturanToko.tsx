@@ -59,6 +59,7 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
     instruksi_bot: store.instruksi_bot || '',
     bahasa_bot: store.bahasa_bot || 'indonesia',
     aktif: store.aktif,
+	slug: store.slug || '',
   })
 
   const [saving, setSaving] = useState(false)
@@ -183,11 +184,45 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
       {activeTab === 'info' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
-              <label style={labelStyle}>Nama toko / bisnis *</label>
-              <input style={inputStyle} value={form.nama_toko} onChange={e => update('nama_toko', e.target.value)} placeholder="Warung Makan Bu Sari" />
-            </div>
-            <div>
+            
+			<div>
+				<label style={labelStyle}>Nama toko / bisnis *</label>
+				<input style={inputStyle} value={form.nama_toko} onChange={e => update('nama_toko', e.target.value)} placeholder="Warung Makan Bu Sari" />
+			</div>
+
+			<div>
+				<label style={labelStyle}>Link Toko Online</label>
+				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+				<span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>mahirusaha.com/</span>
+				<input
+					style={inputStyle}
+					value={form.slug || ''}
+					onChange={e => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/\s+/g, '-'))}
+					placeholder="nama-toko-kamu"
+				/>
+			</div>
+			<span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
+				Hanya huruf kecil, angka, dan tanda (-). Contoh: warung-bu-sari
+			</span>
+			{form.slug && (
+    
+			<a href={`https://mahirusaha.com/${form.slug}`}
+				target="_blank"
+				rel="noopener noreferrer"
+				style={{ fontSize: '0.72rem', color: '#25d366', marginTop: '4px', display: 'block' }}
+				>
+				🔗 Preview: mahirusaha.com/{form.slug}
+			</a>
+			)}
+		</div>
+            
+			
+			
+			
+			
+			
+			
+			<div>
               <label style={labelStyle}>Kategori bisnis</label>
               <select style={{ ...inputStyle, appearance: 'none' }} value={form.kategori} onChange={e => update('kategori', e.target.value)}>
                 <option value="">Pilih kategori...</option>
