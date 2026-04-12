@@ -515,7 +515,7 @@ export default function Dashboard() {
 				</div>
 				<div style={{ display: 'flex', gap: '8px' }}>
       
-					href={`https://mahirusaha.com/${activeStore.slug}`}
+					<a href={`https://mahirusaha.com/${activeStore.slug}`}
 					target="_blank"
 					rel="noopener noreferrer"
 					style={{ flex: 1, display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.8rem' }}
@@ -523,7 +523,7 @@ export default function Dashboard() {
 					🔗 Buka Toko
 					</a>
       
-					href={`https://wa.me/?text=Yuk belanja di toko kami! ${encodeURIComponent(`https://mahirusaha.com/${activeStore.slug}`)}`}
+					<a href={`https://wa.me/?text=Yuk belanja di toko kami! ${encodeURIComponent(`https://mahirusaha.com/${activeStore.slug}`)}`}
 					target="_blank"
 					rel="noopener noreferrer"
 					style={{ flex: 1, display: 'block', textAlign: 'center', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.8rem' }}
