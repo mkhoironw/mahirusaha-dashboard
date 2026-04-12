@@ -1,6 +1,5 @@
-'use client'
-import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import { notFound } from 'next/navigation'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,122 +11,38 @@ const RESERVED_SLUGS = [
   'privasi', 'syarat', 'api', 'reset-password'
 ]
 
-interface Store {
-  id: string
-  nama_toko: string
-  kategori: string
-  lokasi: string
-  deskripsi: string
-  jam_buka: string
-  hari_buka: string
-  metode_pembayaran: string
-  nomor_wa_toko: string
-}
+export default async function TokoPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
 
-interface Produk {
-  id: string
-  nama_produk: string
-  deskripsi: string
-  harga: number
-  harga_coret: number
-  stok: number
-  stok_tidak_terbatas: boolean
-  kategori: string
-  url_gambar: string
-  tersedia: boolean
-}
+  if (RESERVED_SLUGS.includes(slug)) notFound()
 
-export default function TokoPage({ params }: { params: { slug: string } }) {
-  const { slug } = params
-  const [store, setStore] = useState<Store | null>(null)
-  const [produkList, setProdukList] = useState<Produk[]>([])
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
-  const [filterKategori, setFilterKategori] = useState('semua')
-  const [kategoriList, setKategoriList] = useState<string[]>([])
+  // Ambil data toko
+  const { data: store } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('slug', slug)
+    .eq('aktif', true)
+    .single()
 
-  useEffect(() => {
-    if (RESERVED_SLUGS.includes(slug)) {
-      setNotFound(true)
-      return
-    }
-    loadToko()
-  }, [slug])
+  if (!store) notFound()
 
-  const loadToko = async () => {
-    setLoading(true)
-    try {
-      // Ambil data toko
-      const { data: storeData } = await supabase
-        .from('stores')
-        .select('*')
-        .eq('slug', slug)
-        .eq('aktif', true)
-        .single()
+  // Ambil produk
+  const { data: products } = await supabase
+    .from('products')
+    .select('*')
+    .eq('store_id', store.id)
+    .eq('aktif', true)
+    .order('urutan', { ascending: true })
+    .order('created_at', { ascending: false })
 
-      if (!storeData) {
-        setNotFound(true)
-        setLoading(false)
-        return
-      }
+  const produkList = products || []
 
-      setStore(storeData)
-
-      // Ambil produk
-      const { data: products } = await supabase
-        .from('products')
-        .select('*')
-        .eq('store_id', storeData.id)
-        .eq('aktif', true)
-        .order('urutan', { ascending: true })
-        .order('created_at', { ascending: false })
-
-      const list = products || []
-      setProdukList(list)
-
-      // Ambil kategori unik
-      const kategori = Array.from(new Set(list.map(p => p.kategori).filter(Boolean)))
-      setKategoriList(kategori)
-
-    } catch (err) {
-      console.error(err)
-      setNotFound(true)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Kategori unik
+  const kategoriList = Array.from(new Set(produkList.map((p: any) => p.kategori).filter(Boolean)))
 
   const pesanWA = (namaProduk: string, harga: number) => {
     const pesan = `Halo, saya mau pesan *${namaProduk}* (Rp ${harga?.toLocaleString('id-ID') || 0})`
-    return `https://wa.me/${store?.nomor_wa_toko}?text=${encodeURIComponent(pesan)}`
-  }
-
-  const produkFiltered = filterKategori === 'semua'
-    ? produkList
-    : produkList.filter(p => p.kategori === filterKategori)
-
-  if (loading) {
-    return (
-      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🏪</div>
-          <p style={{ color: '#6b7280' }}>Memuat toko...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (notFound || !store) {
-    return (
-      <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔍</div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '8px', color: '#111827' }}>Toko tidak ditemukan</h1>
-          <p style={{ color: '#6b7280', marginBottom: '20px' }}>Link toko tidak valid atau toko sudah tidak aktif.</p>
-          <a href="https://mahirusaha.com" style={{ color: '#25d366', fontWeight: 600, textDecoration: 'none' }}>← Kembali ke Mahirusaha</a>
-        </div>
-      </div>
-    )
+    return `https://wa.me/${store.nomor_wa_toko}?text=${encodeURIComponent(pesan)}`
   }
 
   return (
@@ -135,12 +50,10 @@ export default function TokoPage({ params }: { params: { slug: string } }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        .prod-card { transition: all 0.2s; cursor: default; }
+        .prod-card { transition: all 0.2s; }
         .prod-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
         .btn-wa { transition: opacity 0.2s; }
         .btn-wa:hover { opacity: 0.85; }
-        .kat-btn { transition: all 0.15s; cursor: pointer; }
-        .kat-btn:hover { border-color: #25d366 !important; color: #25d366 !important; }
       `}</style>
 
       {/* Header */}
@@ -191,36 +104,25 @@ export default function TokoPage({ params }: { params: { slug: string } }) {
       {/* Konten */}
       <div style={{ maxWidth: '960px', margin: '0 auto', padding: '28px 5%' }}>
 
-        {/* Filter kategori */}
+        {/* Label kategori */}
         {kategoriList.length > 0 && (
           <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-            <button
-              className="kat-btn"
-              onClick={() => setFilterKategori('semua')}
-              style={{ padding: '7px 18px', borderRadius: '100px', border: `1px solid ${filterKategori === 'semua' ? '#25d366' : '#e5e7eb'}`, background: filterKategori === 'semua' ? '#25d366' : '#fff', color: filterKategori === 'semua' ? '#fff' : '#374151', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'inherit' }}
-            >
-              Semua ({produkList.length})
-            </button>
-            {kategoriList.map(kat => (
-              <button
+            {kategoriList.map((kat: any) => (
+              <span
                 key={kat}
-                className="kat-btn"
-                onClick={() => setFilterKategori(kat)}
-                style={{ padding: '7px 18px', borderRadius: '100px', border: `1px solid ${filterKategori === kat ? '#25d366' : '#e5e7eb'}`, background: filterKategori === kat ? '#25d366' : '#fff', color: filterKategori === kat ? '#fff' : '#374151', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'inherit' }}
+                style={{ padding: '6px 16px', borderRadius: '100px', background: '#fff', border: '1px solid #e5e7eb', fontSize: '0.82rem', fontWeight: 600, color: '#374151' }}
               >
-                {kat} ({produkList.filter(p => p.kategori === kat).length})
-              </button>
+                {kat} ({produkList.filter((p: any) => p.kategori === kat).length})
+              </span>
             ))}
           </div>
         )}
 
         {/* Grid produk */}
-        {produkFiltered.length === 0 ? (
+        {produkList.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📦</div>
-            <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '16px' }}>
-              {produkList.length === 0 ? 'Produk sedang disiapkan.' : 'Tidak ada produk di kategori ini.'}
-            </p>
+            <p style={{ color: '#6b7280', fontSize: '0.95rem', marginBottom: '16px' }}>Produk sedang disiapkan. Hubungi kami via WhatsApp.</p>
             <a
               href={`https://wa.me/${store.nomor_wa_toko}`}
               target="_blank"
@@ -232,7 +134,7 @@ export default function TokoPage({ params }: { params: { slug: string } }) {
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {produkFiltered.map(produk => (
+            {produkList.map((produk: any) => (
               <div
                 key={produk.id}
                 className="prod-card"
@@ -297,7 +199,6 @@ export default function TokoPage({ params }: { params: { slug: string } }) {
                         fontWeight: 700,
                         fontSize: '0.8rem',
                         whiteSpace: 'nowrap',
-                        pointerEvents: (!produk.stok_tidak_terbatas && produk.stok === 0) ? 'none' : 'auto',
                       }}
                     >
                       🛒 Pesan
