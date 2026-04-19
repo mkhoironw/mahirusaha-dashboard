@@ -27,28 +27,23 @@ export async function GET(request: NextRequest) {
       .lt('tanggal_berakhir', sekarang)
 
     let totalSuspend = 0
-
     if (expired && expired.length > 0) {
       for (const client of expired) {
-        // Update status klien → suspend
         await supabase
           .from('clients')
           .update({ status: 'suspend', updated_at: sekarang })
           .eq('id', client.id)
 
-        // Matikan semua toko klien
         await supabase
           .from('stores')
           .update({ aktif: false, updated_at: sekarang })
           .eq('client_id', client.id)
 
-        // Kirim notifikasi WA ke klien
         await kirimNotifWA(
           client.nomor_wa_pemilik,
           `Halo *${client.nama_pemilik}*! 👋\n\nMasa aktif paket *${client.paket.toUpperCase()}* kamu di Mahirusaha sudah berakhir.\n\n❌ Bot WhatsApp toko kamu sementara dinonaktifkan.\n\n✅ Perpanjang sekarang agar bot kembali aktif:\nmahirusaha.com/dashboard\n\nAda pertanyaan? Balas pesan ini. 🙏`
         )
 
-        // Simpan notifikasi di database
         await supabase.from('notifications').insert({
           client_id: client.id,
           tipe: 'subscription_expired',
@@ -63,7 +58,7 @@ export async function GET(request: NextRequest) {
     }
 
     // ================================================
-    // 2. REMINDER H-7 — kirim peringatan 7 hari sebelum habis
+    // 2. REMINDER H-7
     // ================================================
     const h7 = new Date(hari)
     h7.setDate(h7.getDate() + 7)
@@ -78,10 +73,8 @@ export async function GET(request: NextRequest) {
       .lte('tanggal_berakhir', h7End)
 
     let totalRemind7 = 0
-
     if (remind7 && remind7.length > 0) {
       for (const client of remind7) {
-        // Cek apakah reminder sudah pernah dikirim
         const { data: subData } = await supabase
           .from('subscriptions')
           .select('id, reminder_sent_7d')
@@ -96,13 +89,10 @@ export async function GET(request: NextRequest) {
             client.nomor_wa_pemilik,
             `Halo *${client.nama_pemilik}*! 👋\n\n⏰ *Reminder:* Paket *${client.paket.toUpperCase()}* kamu akan berakhir dalam *7 hari*.\n\nPerpanjang sekarang agar bot tidak terputus:\nmahirusaha.com/dashboard\n\nTerima kasih sudah menggunakan Mahirusaha! 🙏`
           )
-
-          // Tandai reminder sudah dikirim
           await supabase
             .from('subscriptions')
             .update({ reminder_sent_7d: true })
             .eq('id', subData.id)
-
           totalRemind7++
         }
       }
@@ -124,7 +114,6 @@ export async function GET(request: NextRequest) {
       .lte('tanggal_berakhir', h3End)
 
     let totalRemind3 = 0
-
     if (remind3 && remind3.length > 0) {
       for (const client of remind3) {
         const { data: subData } = await supabase
@@ -141,12 +130,10 @@ export async function GET(request: NextRequest) {
             client.nomor_wa_pemilik,
             `Halo *${client.nama_pemilik}*! ⚠️\n\nPaket *${client.paket.toUpperCase()}* kamu akan berakhir dalam *3 hari*.\n\nJangan sampai bot kamu mati! Perpanjang sekarang:\nmahirusaha.com/dashboard\n\nBantuan? Balas pesan ini. 🙏`
           )
-
           await supabase
             .from('subscriptions')
             .update({ reminder_sent_3d: true })
             .eq('id', subData.id)
-
           totalRemind3++
         }
       }
@@ -168,7 +155,6 @@ export async function GET(request: NextRequest) {
       .lte('tanggal_berakhir', h1End)
 
     let totalRemind1 = 0
-
     if (remind1 && remind1.length > 0) {
       for (const client of remind1) {
         const { data: subData } = await supabase
@@ -185,20 +171,17 @@ export async function GET(request: NextRequest) {
             client.nomor_wa_pemilik,
             `Halo *${client.nama_pemilik}*! 🚨\n\n*URGENT:* Paket *${client.paket.toUpperCase()}* kamu berakhir *BESOK*!\n\nBot akan otomatis dimatikan jika tidak diperpanjang.\n\n👉 Perpanjang sekarang:\nmahirusaha.com/dashboard\n\nProses bayar hanya 2 menit! 🙏`
           )
-
           await supabase
             .from('subscriptions')
             .update({ reminder_sent_1d: true })
             .eq('id', subData.id)
-
           totalRemind1++
         }
       }
     }
 
     // ================================================
-    // 5. RESET KUOTA PESAN BULANAN
-    // Setiap awal bulan, reset pesan_terpakai ke 0
+    // 5. RESET KUOTA PESAN BULANAN (setiap tanggal 1)
     // ================================================
     let totalReset = 0
     if (hari.getDate() === 1) {
@@ -216,12 +199,50 @@ export async function GET(request: NextRequest) {
             updated_at: sekarang,
           })
           .eq('aktif', true)
-
         totalReset = activeStores.length
       }
     }
 
-    console.log(`✅ Cron selesai: ${totalSuspend} suspend, ${totalRemind7} remind7, ${totalRemind3} remind3, ${totalRemind1} remind1, ${totalReset} reset kuota`)
+    // ================================================
+    // 6. REMINDER BOT BELUM AKTIF — 24 jam setelah daftar
+    // ================================================
+    const kemarin = new Date(hari)
+    kemarin.setDate(kemarin.getDate() - 1)
+    const kemarinStart = new Date(kemarin.setHours(0, 0, 0, 0)).toISOString()
+    const kemarinEnd = new Date(kemarin.setHours(23, 59, 59, 999)).toISOString()
+
+    const { data: belumAktif } = await supabase
+      .from('clients')
+      .select('id, nama_pemilik, email')
+      .gte('created_at', kemarinStart)
+      .lte('created_at', kemarinEnd)
+
+    let totalReminderBot = 0
+    if (belumAktif && belumAktif.length > 0) {
+      for (const client of belumAktif) {
+        // Cek apakah toko sudah punya wa_phone_number_id (bot sudah aktif)
+        const { data: toko } = await supabase
+          .from('stores')
+          .select('wa_phone_number_id')
+          .eq('client_id', client.id)
+          .single()
+
+        // Jika wa_phone_number_id masih kosong = bot belum aktif
+        if (!toko?.wa_phone_number_id) {
+          await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email/reminder-bot`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nama: client.nama_pemilik,
+              email: client.email,
+            })
+          })
+          totalReminderBot++
+        }
+      }
+    }
+
+    console.log(`✅ Cron selesai: ${totalSuspend} suspend, ${totalRemind7} remind7, ${totalRemind3} remind3, ${totalRemind1} remind1, ${totalReset} reset kuota, ${totalReminderBot} reminder bot belum aktif`)
 
     return NextResponse.json({
       success: true,
@@ -231,6 +252,7 @@ export async function GET(request: NextRequest) {
         reminder_3_hari: totalRemind3,
         reminder_1_hari: totalRemind1,
         reset_kuota: totalReset,
+        reminder_bot_belum_aktif: totalReminderBot,
       }
     })
 
