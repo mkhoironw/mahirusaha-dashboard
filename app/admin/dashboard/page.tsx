@@ -1,19 +1,16 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
-
 interface Admin {
   id: string
   nama: string
   email: string
   role: string
 }
-
 interface Client {
   id: string
   nama_pemilik: string
@@ -24,7 +21,6 @@ interface Client {
   nomor_wa_pemilik: string
   created_at: string
 }
-
 interface Store {
   id: string
   client_id: string
@@ -37,7 +33,6 @@ interface Store {
   batas_pesan_bulan: number
   created_at: string
 }
-
 interface EnterpriseLead {
   id: string
   nama_pic: string
@@ -48,13 +43,10 @@ interface EnterpriseLead {
   status: string
   created_at: string
 }
-
 export default function AdminDashboard() {
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [activeMenu, setActiveMenu] = useState('overview')
   const [loading, setLoading] = useState(true)
-
-  // Data
   const [clients, setClients] = useState<Client[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [leads, setLeads] = useState<EnterpriseLead[]>([])
@@ -67,15 +59,12 @@ export default function AdminDashboard() {
     totalLeads: 0,
     mrr: 0,
   })
-
-  // State untuk edit nomor WA
   const [editingStore, setEditingStore] = useState<string | null>(null)
   const [newNomorWA, setNewNomorWA] = useState('')
   const [saving, setSaving] = useState(false)
-
-  // State untuk search & filter
   const [searchKlien, setSearchKlien] = useState('')
   const [filterStatus, setFilterStatus] = useState('semua')
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null)
 
   useEffect(() => {
     const session = localStorage.getItem('mahirusaha_admin')
@@ -91,36 +80,26 @@ export default function AdminDashboard() {
   const loadAllData = async () => {
     setLoading(true)
     try {
-      // Load clients
       const { data: clientsData } = await supabase
         .from('clients')
         .select('*')
         .order('created_at', { ascending: false })
-
-      // Load stores
       const { data: storesData } = await supabase
         .from('stores')
         .select('*')
         .order('created_at', { ascending: false })
-
-      // Load enterprise leads
       const { data: leadsData } = await supabase
         .from('enterprise_leads')
         .select('*')
         .order('created_at', { ascending: false })
-
       const c = clientsData || []
       const s = storesData || []
       const l = leadsData || []
-
       setClients(c)
       setStores(s)
       setLeads(l)
-
-      // Hitung MRR
-      const hargaPaket: Record<string, number> = { starter: 99000, pro: 299000, bisnis: 599000 }
+      const hargaPaket: Record<string, number> = { starter: 99000, pro: 299000, bisnis: 699000 }
       const mrr = c.filter(cl => cl.status === 'aktif').reduce((sum, cl) => sum + (hargaPaket[cl.paket] || 0), 0)
-
       setStats({
         totalKlien: c.length,
         klienAktif: c.filter(cl => cl.status === 'aktif').length,
@@ -150,7 +129,6 @@ export default function AdminDashboard() {
         .from('stores')
         .update({ nomor_wa_toko: newNomorWA, updated_at: new Date().toISOString() })
         .eq('id', storeId)
-
       setStores(prev => prev.map(s => s.id === storeId ? { ...s, nomor_wa_toko: newNomorWA } : s))
       setEditingStore(null)
       setNewNomorWA('')
@@ -165,9 +143,30 @@ export default function AdminDashboard() {
     const newStatus = currentStatus === 'suspend' ? 'trial' : 'suspend'
     const confirm = window.confirm(`${newStatus === 'suspend' ? 'Suspend' : 'Aktifkan kembali'} klien ini?`)
     if (!confirm) return
-
     await supabase.from('clients').update({ status: newStatus }).eq('id', clientId)
     setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: newStatus } : c))
+  }
+
+  const handleKirimNotifBotAktif = async (clientId: string, nama: string, email: string) => {
+    const confirm = window.confirm(`Kirim email "Bot Aktif" ke ${nama} (${email})?`)
+    if (!confirm) return
+    setSendingEmail(clientId)
+    try {
+      const response = await fetch('/api/email/bot-aktif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientId, nama, email })
+      })
+      if (response.ok) {
+        alert(`✅ Email "Bot Aktif" berhasil dikirim ke ${email}`)
+      } else {
+        alert('❌ Gagal kirim email. Coba lagi.')
+      }
+    } catch {
+      alert('❌ Terjadi kesalahan.')
+    } finally {
+      setSendingEmail(null)
+    }
   }
 
   const handleUpdateLeadStatus = async (leadId: string, newStatus: string) => {
@@ -232,11 +231,13 @@ export default function AdminDashboard() {
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 100px; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         .fadeUp { animation: fadeUp 0.4s ease forwards; }
+        .menu-item:hover { background: rgba(255,255,255,0.05) !important; }
+        .btn-action { transition: opacity 0.2s; }
+        .btn-action:hover { opacity: 0.8; }
       `}</style>
 
       {/* SIDEBAR */}
       <div style={{ width: '220px', background: 'rgba(255,255,255,0.02)', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
-        {/* Logo */}
         <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg,#25d366,#128c7e)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>⚙️</div>
           <div>
@@ -244,12 +245,11 @@ export default function AdminDashboard() {
             <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)' }}>Mahirusaha Internal</div>
           </div>
         </div>
-
-        {/* Menu */}
         <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
           {menuItems.map(item => (
             <div
               key={item.id}
+              className="menu-item"
               onClick={() => setActiveMenu(item.id)}
               style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', marginBottom: '2px', cursor: 'pointer', background: activeMenu === item.id ? 'rgba(37,211,102,0.1)' : 'transparent', border: activeMenu === item.id ? '1px solid rgba(37,211,102,0.2)' : '1px solid transparent' }}
             >
@@ -258,8 +258,6 @@ export default function AdminDashboard() {
             </div>
           ))}
         </nav>
-
-        {/* Admin info */}
         <div style={{ padding: '12px 8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ padding: '10px 12px', marginBottom: '4px' }}>
             <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{admin?.nama}</div>
@@ -276,7 +274,6 @@ export default function AdminDashboard() {
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, overflowY: 'auto', height: '100vh' }}>
-        {/* Top bar */}
         <div style={{ padding: '16px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(7,13,26,0.8)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 10 }}>
           <h1 style={{ fontSize: '1rem', fontWeight: 700 }}>
             {menuItems.find(m => m.id === activeMenu)?.icon} {menuItems.find(m => m.id === activeMenu)?.label}
@@ -294,7 +291,6 @@ export default function AdminDashboard() {
           {/* ===== OVERVIEW ===== */}
           {activeMenu === 'overview' && (
             <div className="fadeUp">
-              {/* Stats cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '28px' }}>
                 {[
                   { label: 'Total Klien', value: stats.totalKlien, icon: '👥', color: '#25d366' },
@@ -309,7 +305,6 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '28px' }}>
                 {[
                   { label: 'Total Toko', value: stats.totalToko, icon: '🏪', color: '#fff' },
@@ -323,8 +318,6 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-
-              {/* Klien terbaru */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px' }}>
                 <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '16px' }}>👥 Klien Terbaru</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -348,7 +341,6 @@ export default function AdminDashboard() {
           {/* ===== KLIEN ===== */}
           {activeMenu === 'klien' && (
             <div className="fadeUp">
-              {/* Search & filter */}
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 <input
                   style={{ flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }}
@@ -366,15 +358,11 @@ export default function AdminDashboard() {
                   ))}
                 </select>
               </div>
-
               <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px' }}>
                 {filteredClients.length} klien ditemukan
               </div>
-
-              {/* Table */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden' }}>
-                {/* Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1.5fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <span>Nama</span>
                   <span>Email</span>
                   <span>Paket</span>
@@ -382,9 +370,8 @@ export default function AdminDashboard() {
                   <span>Bergabung</span>
                   <span>Aksi</span>
                 </div>
-
                 {filteredClients.map((c, i) => (
-                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1fr', gap: '12px', padding: '14px 16px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
+                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1.5fr', gap: '12px', padding: '14px 16px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.nama_pemilik}</div>
                       <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>{c.nomor_wa_pemilik || '-'}</div>
@@ -397,17 +384,25 @@ export default function AdminDashboard() {
                     <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
                       {new Date(c.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}
                     </div>
-                    <div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                       <button
+                        className="btn-action"
                         onClick={() => handleSuspendKlien(c.id, c.status)}
-                        style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: `1px solid ${c.status === 'suspend' ? 'rgba(37,211,102,0.3)' : 'rgba(239,68,68,0.3)'}`, background: 'transparent', color: c.status === 'suspend' ? '#25d366' : '#EF4444', cursor: 'pointer', fontFamily: 'inherit' }}
+                        style={{ fontSize: '0.68rem', padding: '5px 8px', borderRadius: '6px', border: `1px solid ${c.status === 'suspend' ? 'rgba(37,211,102,0.3)' : 'rgba(239,68,68,0.3)'}`, background: 'transparent', color: c.status === 'suspend' ? '#25d366' : '#EF4444', cursor: 'pointer', fontFamily: 'inherit' }}
                       >
                         {c.status === 'suspend' ? 'Aktifkan' : 'Suspend'}
+                      </button>
+                      <button
+                        className="btn-action"
+                        onClick={() => handleKirimNotifBotAktif(c.id, c.nama_pemilik, c.email)}
+                        disabled={sendingEmail === c.id}
+                        style={{ fontSize: '0.68rem', padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', opacity: sendingEmail === c.id ? 0.5 : 1 }}
+                      >
+                        {sendingEmail === c.id ? '⏳' : '📧 Bot Aktif'}
                       </button>
                     </div>
                   </div>
                 ))}
-
                 {filteredClients.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
                     Tidak ada klien ditemukan
@@ -423,9 +418,7 @@ export default function AdminDashboard() {
               <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>
                 {stores.length} toko terdaftar · {stores.filter(s => s.aktif).length} aktif
               </div>
-
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden' }}>
-                {/* Header */}
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 0.8fr 1fr 1.2fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <span>Nama Toko</span>
                   <span>Nomor WA</span>
@@ -434,7 +427,6 @@ export default function AdminDashboard() {
                   <span>Status</span>
                   <span>Aksi</span>
                 </div>
-
                 {stores.map((s, i) => (
                   <div key={s.id} style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 0.8fr 1fr 1.2fr', gap: '12px', padding: '14px 16px', alignItems: 'center' }}>
@@ -456,6 +448,7 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <button
+                          className="btn-action"
                           onClick={() => { setEditingStore(s.id); setNewNomorWA(s.nomor_wa_toko) }}
                           style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}
                         >
@@ -463,8 +456,6 @@ export default function AdminDashboard() {
                         </button>
                       </div>
                     </div>
-
-                    {/* Form ganti nomor WA */}
                     {editingStore === s.id && (
                       <div style={{ padding: '0 16px 16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
                         <input
@@ -490,7 +481,6 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 ))}
-
                 {stores.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
                     Belum ada toko terdaftar
@@ -506,7 +496,6 @@ export default function AdminDashboard() {
               <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>
                 {leads.length} leads masuk
               </div>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {leads.map(lead => (
                   <div key={lead.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px 20px' }}>
@@ -551,7 +540,6 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 ))}
-
                 {leads.length === 0 && (
                   <div style={{ textAlign: 'center', padding: '60px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '12px' }}>📋</div>
@@ -565,7 +553,6 @@ export default function AdminDashboard() {
           {/* ===== REVENUE ===== */}
           {activeMenu === 'revenue' && (
             <div className="fadeUp">
-              {/* MRR breakdown */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '24px' }}>
                 {[
                   { label: 'MRR', value: fmt(stats.mrr), sub: 'Monthly Recurring Revenue', color: '#25d366' },
@@ -579,14 +566,12 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-
-              {/* Breakdown per paket */}
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}>
                 <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '16px' }}>💰 Revenue per Paket</h3>
                 {[
                   { paket: 'starter', harga: 99000, label: 'Starter' },
                   { paket: 'pro', harga: 299000, label: 'Pro' },
-                  { paket: 'bisnis', harga: 599000, label: 'Bisnis' },
+                  { paket: 'bisnis', harga: 699000, label: 'Bisnis' },
                 ].map(p => {
                   const jumlah = clients.filter(c => c.status === 'aktif' && c.paket === p.paket).length
                   const revenue = jumlah * p.harga
@@ -605,11 +590,9 @@ export default function AdminDashboard() {
                   )
                 })}
               </div>
-
-              {/* BEP info */}
               <div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '14px', padding: '16px 20px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
-                  💡 <strong style={{ color: '#25d366' }}>BEP:</strong> Dengan biaya server ~Rp 175rb/bln, kamu butuh minimal <strong style={{ color: '#fff' }}>2 klien Starter</strong> atau <strong style={{ color: '#fff' }}>1 klien Pro</strong> untuk break even. MRR saat ini <strong style={{ color: '#25d366' }}>{fmt(stats.mrr)}</strong> dengan margin <strong style={{ color: '#25d366' }}>{stats.mrr > 175000 ? Math.round(((stats.mrr - 175000) / stats.mrr) * 100) : 0}%</strong>.
+                  💡 <strong style={{ color: '#25d366' }}>BEP:</strong> Dengan biaya server ~Rp 655rb/bln, kamu butuh minimal <strong style={{ color: '#fff' }}>7 klien Starter</strong> atau <strong style={{ color: '#fff' }}>3 klien Pro</strong> untuk break even. MRR saat ini <strong style={{ color: '#25d366' }}>{fmt(stats.mrr)}</strong> dengan margin <strong style={{ color: '#25d366' }}>{stats.mrr > 655000 ? Math.round(((stats.mrr - 655000) / stats.mrr) * 100) : 0}%</strong>.
                 </p>
               </div>
             </div>
