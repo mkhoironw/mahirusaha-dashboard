@@ -155,7 +155,30 @@ export default function Daftar() {
         persen_selesai: 25,
       })
 
-      // Lanjut ke step 3 (sukses)
+      // Kirim email welcome
+      try {
+        await fetch('/api/email/welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+        nama: form.nama_pemilik,
+        email: form.email,
+        nama_toko: form.nama_toko,
+        slug: form.slug,
+       })
+     })
+    } catch {
+      // Email gagal tidak menghentikan proses daftar
+      console.error('Email welcome gagal terkirim')
+    }
+
+// Lanjut ke step 3 (sukses)
+setStep(3)
+	  
+	  
+	  
+	  
+	  // Lanjut ke step 3 (sukses)
       setStep(3)
 
     } catch (err) {
