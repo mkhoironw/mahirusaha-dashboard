@@ -368,7 +368,7 @@ setStep(3)
 				  <div>
                     <label style={labelStyle}>Nomor WhatsApp toko *</label>
                     <input required style={inputStyle} placeholder="628xxxxxxxxxx (format internasional)" value={form.nomor_wa_toko} onChange={e => update('nomor_wa_toko', e.target.value)} />
-                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>Nomor WA yang akan dipakai bot. Harus sudah terdaftar di WhatsApp.</span>
+                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>Nomor WA khusus untuk bot — JANGAN pakai nomor yang sudah ada WhatsApp-nya!</span>
                   </div>
                   <div>
                     <label style={labelStyle}>Kategori bisnis *</label>
@@ -431,7 +431,7 @@ setStep(3)
               )}
 
               <button type="submit" disabled={loading} style={{ background: loading ? 'rgba(37,211,102,0.5)' : 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '14px', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: '4px' }}>
-                {loading ? 'Membuat akun...' : '🚀 Aktifkan Bot Sekarang'}
+                {loading ? 'Membuat akun...' : '✅ Selesai Daftar'}
               </button>
             </form>
           </div>
