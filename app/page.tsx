@@ -82,8 +82,9 @@ export default function Home() {
         </div>
         <div className="hide-mob" style={{ display:'flex', alignItems:'center', gap:'28px' }}>
           {['Fitur','Harga','Enterprise','Cara Kerja'].map(t=>(
-            <a key={t} href={`#${t.toLowerCase()}`} className="nav-a">{t}</a>
-          ))}
+			<a key={t} href={`#${t.toLowerCase()}`} className="nav-a">{t}</a>
+		))}
+        <a href="/panduan" className="nav-a" style={{ color: '#25d366', fontWeight: 600 }}>Panduan</a>
         </div>
         <div style={{ display:'flex', gap:'10px' }}>
           <a href="/masuk" style={{ color:'rgba(255,255,255,.7)', padding:'10px 18px', borderRadius:'10px', textDecoration:'none', fontWeight:600, fontSize:'.85rem', border:'1px solid rgba(255,255,255,.1)' }}>Masuk</a>
