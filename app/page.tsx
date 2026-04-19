@@ -317,9 +317,9 @@ export default function Home() {
           <div className="steps-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'20px' }}>
             {[
               { step:'01', icon:'📝', title:'Daftar Akun', desc:'Buat akun gratis, isi info toko dan produk. Tidak perlu kartu kredit.' },
-              { step:'02', icon:'📱', title:'Siapkan Nomor WA', desc:'Siapkan SIM card baru khusus untuk bot tokomu (Telkomsel ~Rp 35rb).' },
-              { step:'03', icon:'💳', title:'Pilih Paket & Bayar', desc:'Mulai Rp 99rb/bln. Kirim nomor WA ke tim kami via WhatsApp.' },
-              { step:'04', icon:'🚀', title:'Bot Aktif dalam 24 Jam!', desc:'Bot WA + toko online kamu langsung aktif melayani pelanggan otomatis.' },
+			  { step:'02', icon:'📱', title:'Siapkan Nomor WA', desc:'Siapkan SIM card baru khusus untuk bot tokomu (Telkomsel ~Rp 35rb). Jangan install WhatsApp!' },
+              { step:'03', icon:'💬', title:'Kirim Data ke Tim Kami', desc:'Kirim nomor WA bot ke +62 813-2531-202. Tim kami proses aktivasi dalam 24 jam.' },
+              { step:'04', icon:'🚀', title:'Bot Aktif — Coba Gratis!', desc:'Bot WA + toko online aktif. Nikmati 100 pesan gratis dulu, baru bayar setelah trial habis!' },
             ].map((s,i)=>(
               <div key={i} style={{ textAlign:'center', position:'relative' }}>
                 {i<3&&<div style={{ position:'absolute', top:'25px', left:'60%', right:'-10px', height:'1px', background:'linear-gradient(90deg,rgba(37,211,102,.3),transparent)' }}/>}
