@@ -1,18 +1,15 @@
 'use client'
 import { useState, useEffect } from 'react'
-
 export default function Home() {
   const [scrolled, setScrolled] = useState(false)
   const [billing, setBilling] = useState<'bulanan' | 'tahunan'>('bulanan')
   const [formEnterprise, setFormEnterprise] = useState({ nama: '', perusahaan: '', email: '', wa: '', kebutuhan: '' })
   const [formStatus, setFormStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-
   const handleEnterpriseSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormStatus('loading')
@@ -28,18 +25,14 @@ export default function Home() {
       setFormStatus('error')
     }
   }
-
   const prices = {
-  starter: { bulanan: 99000, tahunan: 74000 },
-  pro: { bulanan: 299000, tahunan: 224000 },
-  bisnis: { bulanan: 699000, tahunan: 524000 },
-}
-
+    starter: { bulanan: 99000, tahunan: 74000 },
+    pro: { bulanan: 299000, tahunan: 224000 },
+    bisnis: { bulanan: 699000, tahunan: 524000 },
+  }
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
-
   return (
     <main style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", background: '#070d1a', color: '#fff', minHeight: '100vh', overflowX: 'hidden' }}>
-
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -102,24 +95,20 @@ export default function Home() {
       <section style={{ minHeight:'100vh', display:'flex', alignItems:'center', padding:'110px 5% 70px', position:'relative', overflow:'hidden' }}>
         <div style={{ position:'absolute', top:'15%', left:'5%', width:'500px', height:'500px', background:'radial-gradient(circle,rgba(37,211,102,.09) 0%,transparent 70%)', pointerEvents:'none' }}/>
         <div style={{ position:'absolute', bottom:'10%', right:'5%', width:'350px', height:'350px', background:'radial-gradient(circle,rgba(18,140,126,.08) 0%,transparent 70%)', pointerEvents:'none' }}/>
-
         <div className="hero-grid" style={{ maxWidth:'1200px', margin:'0 auto', display:'flex', alignItems:'center', gap:'60px', width:'100%' }}>
           <div style={{ flex:1 }}>
             <div className="fadeUp" style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'rgba(37,211,102,.1)', border:'1px solid rgba(37,211,102,.25)', borderRadius:'100px', padding:'6px 14px', marginBottom:'22px' }}>
               <div style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#25d366', animation:'glow 2s infinite' }}/>
               <span style={{ fontSize:'.78rem', color:'#25d366', fontWeight:700 }}>Platform WhatsApp Business — UMKM hingga Enterprise</span>
             </div>
-
             <h1 className="h1 fadeUp" style={{ fontSize:'3.6rem', fontWeight:800, lineHeight:1.12, letterSpacing:'-1.5px', marginBottom:'20px' }}>
               Satu Platform,<br/>
               <span className="shimmer-text">Semua Skala</span><br/>
               Bisnis
             </h1>
-
             <p className="fadeUp-2" style={{ fontSize:'1.05rem', color:'rgba(255,255,255,.6)', lineHeight:1.75, marginBottom:'34px', maxWidth:'500px' }}>
-              Dari warung makan hingga perusahaan multinasional — Mahirusaha mengotomatiskan layanan WhatsApp Business dengan AI yang cerdas dan dashboard yang powerful.
+              Dari warung makan hingga perusahaan multinasional — Mahirusaha mengotomatiskan layanan WhatsApp Business dengan AI yang cerdas, toko online gratis, dan dashboard yang powerful.
             </p>
-
             <div className="fadeUp-3" style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
               <a href="/daftar" className="pulse-g" style={{ background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'15px 30px', borderRadius:'12px', textDecoration:'none', fontWeight:700, fontSize:'.95rem', display:'inline-flex', alignItems:'center', gap:'8px' }}>
                 💬 Mulai Gratis — 100 Pesan
@@ -128,7 +117,6 @@ export default function Home() {
                 Solusi Enterprise →
               </a>
             </div>
-
             {/* Trust badges */}
             <div style={{ marginTop:'38px', display:'flex', alignItems:'center', gap:'24px', flexWrap:'wrap' }}>
               {[['10+','UMKM Aktif'],['99%','Uptime SLA'],['24/7','AI Support'],['<2s','Response Time']].map(([n,l])=>(
@@ -139,7 +127,6 @@ export default function Home() {
               ))}
             </div>
           </div>
-
           {/* Chat mockup */}
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}>
             <div className="float" style={{ position:'relative', width:'320px' }}>
@@ -177,7 +164,7 @@ export default function Home() {
         <div style={{ display:'flex', animation:'ticker 25s linear infinite', width:'max-content' }}>
           {[...Array(2)].map((_,r)=>(
             <div key={r} style={{ display:'flex', gap:'40px', paddingRight:'40px' }}>
-              {['500+ Bisnis Aktif','UMKM hingga Enterprise','AI Bahasa Indonesia','Respons Otomatis 24 Jam','Setup 15 Menit','Tanpa Coding','Dashboard Real-time','Broadcast Promo','CRM Terintegrasi'].map((t,i)=>(
+              {['10+ Bisnis Aktif','UMKM hingga Enterprise','AI Bahasa Indonesia','Respons Otomatis 24 Jam','Toko Online Gratis','Tanpa Coding','Dashboard Real-time','Broadcast Promo','CRM Terintegrasi','Subdomain Gratis','Hosting Gratis'].map((t,i)=>(
                 <span key={i} style={{ color:'#25d366', fontWeight:600, fontSize:'.82rem', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:'10px' }}>
                   {t} <span style={{ opacity:.3 }}>✦</span>
                 </span>
@@ -195,13 +182,12 @@ export default function Home() {
             <p style={{ color:'rgba(255,255,255,.5)', fontSize:'.95rem' }}>Satu platform, dikustomisasi sesuai kebutuhan bisnismu</p>
           </div>
           <div className="ent-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
-            {/* UMKM */}
             <div className="card-h" style={{ background:'rgba(37,211,102,.06)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'20px', padding:'32px' }}>
               <div style={{ fontSize:'2rem', marginBottom:'14px' }}>🏪</div>
               <h3 style={{ fontWeight:700, fontSize:'1.2rem', marginBottom:'8px', color:'#25d366' }}>UMKM & Bisnis Kecil</h3>
               <p style={{ color:'rgba(255,255,255,.55)', fontSize:'.875rem', lineHeight:1.7, marginBottom:'20px' }}>Warung, toko online, kuliner, fashion, jasa kecantikan, dan bisnis kecil lainnya yang ingin tampil profesional dan meningkatkan penjualan.</p>
               <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginBottom:'24px' }}>
-                {['Setup mudah, 15 menit langsung aktif','Harga terjangkau mulai Rp 99rb/bln','Tidak perlu tim IT','Bot berbahasa Indonesia natural'].map(f=>(
+                {['Setup mudah, langsung aktif dalam 24 jam','Harga terjangkau mulai Rp 99rb/bln','Toko online gratis dengan subdomain sendiri','Bot berbahasa Indonesia natural','Tidak perlu tim IT'].map(f=>(
                   <div key={f} style={{ display:'flex', gap:'8px', fontSize:'.82rem', color:'rgba(255,255,255,.7)' }}>
                     <span style={{ color:'#25d366' }}>✓</span> {f}
                   </div>
@@ -209,7 +195,6 @@ export default function Home() {
               </div>
               <a href="/daftar" style={{ display:'inline-block', background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'12px 24px', borderRadius:'10px', textDecoration:'none', fontWeight:700, fontSize:'.875rem' }}>Mulai Gratis →</a>
             </div>
-            {/* Enterprise */}
             <div className="card-h" style={{ background:'rgba(99,102,241,.06)', border:'1px solid rgba(99,102,241,.25)', borderRadius:'20px', padding:'32px' }}>
               <div style={{ fontSize:'2rem', marginBottom:'14px' }}>🏢</div>
               <h3 style={{ fontWeight:700, fontSize:'1.2rem', marginBottom:'8px', color:'#818cf8' }}>Perusahaan & Enterprise</h3>
@@ -237,14 +222,14 @@ export default function Home() {
           <div className="feat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'16px' }}>
             {[
               { icon:'🤖', title:'AI Chatbot 24 Jam', desc:'Jawab pertanyaan pelanggan otomatis kapan saja dengan AI yang memahami konteks bisnis kamu.', tag:'Semua Paket' },
-              { icon:'📦', title:'Katalog Produk & Layanan', desc:'Isi produk sekali, bot langsung bisa jelaskan harga, stok, dan detail ke semua pelanggan.', tag:'Semua Paket' },
+              { icon:'🛍️', title:'Toko Online Gratis', desc:'Setiap toko dapat halaman toko online cantik dengan subdomain gratis. mahirusaha.com/namatoko — hosting sudah termasuk!', tag:'Semua Paket' },
+              { icon:'📦', title:'Katalog Produk & Layanan', desc:'Isi produk sekali, bot dan toko online langsung tampilkan harga, stok, dan detail ke semua pelanggan.', tag:'Semua Paket' },
               { icon:'📢', title:'Broadcast & Campaign', desc:'Kirim promo ke ribuan kontak sekaligus. Jadwal otomatis, anti-banned, personalisasi pesan.', tag:'Pro+' },
               { icon:'👥', title:'CRM & Pipeline', desc:'Kelola prospek, tandai pelanggan VIP, dan follow-up otomatis untuk closing lebih banyak.', tag:'Pro+' },
               { icon:'🔌', title:'API & Integrasi', desc:'Hubungkan ke CRM, ERP, atau sistem internal perusahaan melalui REST API yang lengkap.', tag:'Enterprise' },
               { icon:'🏷️', title:'White-label', desc:'Bot tampil dengan nama dan brand perusahaanmu. Pelanggan tidak tahu platform yang digunakan.', tag:'Enterprise' },
               { icon:'📊', title:'Analytics & Laporan', desc:'Dashboard real-time: jumlah chat, konversi, produk terpopuler, performa per agent.', tag:'Bisnis+' },
               { icon:'🔄', title:'Human Takeover', desc:'Ambil alih percakapan dari bot kapan saja. Sistem cerdas eskalasi otomatis ke agen manusia.', tag:'Semua Paket' },
-              { icon:'🛡️', title:'SLA & Uptime 99.9%', desc:'Infrastruktur enterprise-grade dengan monitoring 24 jam dan garansi uptime untuk bisnis besar.', tag:'Enterprise' },
             ].map((f,i)=>(
               <div key={i} className="card-h" style={{ background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.07)', borderRadius:'16px', padding:'24px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'14px' }}>
@@ -265,26 +250,24 @@ export default function Home() {
           <div style={{ textAlign:'center', marginBottom:'50px' }}>
             <div style={{ display:'inline-block', background:'rgba(37,211,102,.1)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'100px', padding:'5px 14px', marginBottom:'14px', color:'#25d366', fontSize:'.78rem', fontWeight:700 }}>HARGA TRANSPARAN</div>
             <h2 style={{ fontSize:'2.2rem', fontWeight:800, letterSpacing:'-.5px', marginBottom:'16px' }}>Pilih paket yang tepat</h2>
-            {/* Toggle billing */}
             <div style={{ display:'inline-flex', background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.1)', borderRadius:'100px', padding:'4px' }}>
               {(['bulanan','tahunan'] as const).map(b=>(
                 <button key={b} onClick={()=>setBilling(b)} style={{ padding:'8px 20px', borderRadius:'100px', border:'none', cursor:'pointer', fontWeight:600, fontSize:'.85rem', fontFamily:'inherit', background: billing===b?'#25d366':'transparent', color: billing===b?'#070d1a':'rgba(255,255,255,.6)', transition:'all .2s' }}>
-                  {b==='bulanan'?'Bulanan':'Tahunan'}{b==='tahunan'&&<span style={{ marginLeft:'6px', fontSize:'.7rem', background:'rgba(37,211,102,.2)', color:'#25d366', padding:'2px 6px', borderRadius:'100px' }}>Hemat 20%</span>}
+                  {b==='bulanan'?'Bulanan':'Tahunan'}{b==='tahunan'&&<span style={{ marginLeft:'6px', fontSize:'.7rem', background:'rgba(37,211,102,.2)', color:'#25d366', padding:'2px 6px', borderRadius:'100px' }}>Hemat 25%</span>}
                 </button>
               ))}
             </div>
           </div>
-
           <div className="price-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'16px' }}>
             {[
               { kode:'starter', name:'Starter', desc:'Untuk UMKM yang baru mulai', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
-				features:['1 Toko','1.000 pesan/bulan','AI Chatbot 24 jam','Katalog produk','Human Takeover','Referral program','Support email'] },
-			  { kode:'pro', name:'Pro', desc:'Untuk bisnis yang ingin tumbuh', color:'rgba(37,211,102,.07)', border:'rgba(37,211,102,.35)', popular:true,
-				features:['3 Toko','5.000 pesan/bulan','Semua fitur Starter','Broadcast & kampanye','CRM pelanggan','Laporan harian','Priority support'] },
-			  { kode:'bisnis', name:'Bisnis', desc:'Untuk bisnis menengah', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
-				features:['10 Toko','20.000 pesan/bulan','Semua fitur Pro','Multi-agent CS','Analytics & laporan advanced','Dedicated support'] },
-			  { kode:'enterprise', name:'Enterprise', desc:'Untuk perusahaan besar', color:'rgba(99,102,241,.07)', border:'rgba(99,102,241,.3)', popular:false,
-				features:['Unlimited Toko','Unlimited pesan','White-label','API integration','SLA 99.9%','Dedicated support','Custom integration'] },
+                features:['1 Toko Online + Subdomain Gratis','1.000 pesan/bulan','AI Chatbot 24 jam','Katalog produk','Human Takeover','Referral program','Support email'] },
+              { kode:'pro', name:'Pro', desc:'Untuk bisnis yang ingin tumbuh', color:'rgba(37,211,102,.07)', border:'rgba(37,211,102,.35)', popular:true,
+                features:['3 Toko Online + Subdomain Gratis','5.000 pesan/bulan','Semua fitur Starter','Broadcast & kampanye','CRM pelanggan','Laporan harian','Priority support'] },
+              { kode:'bisnis', name:'Bisnis', desc:'Untuk bisnis menengah', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
+                features:['10 Toko Online + Subdomain Gratis','20.000 pesan/bulan','Semua fitur Pro','Multi-agent CS','Analytics & laporan advanced','Dedicated support'] },
+              { kode:'enterprise', name:'Enterprise', desc:'Untuk perusahaan besar', color:'rgba(99,102,241,.07)', border:'rgba(99,102,241,.3)', popular:false,
+                features:['Unlimited Toko Online','Unlimited pesan','White-label','API integration','SLA 99.9%','Dedicated support','Custom integration'] },
             ].map((p)=>(
               <div key={p.kode} className="card-h" style={{ background:p.color, border:`1px solid ${p.border}`, borderRadius:'20px', padding:'24px', position:'relative', display:'flex', flexDirection:'column' }}>
                 {p.popular&&<div style={{ position:'absolute', top:'-12px', left:'50%', transform:'translateX(-50%)', background:'#25d366', color:'#070d1a', fontSize:'.68rem', fontWeight:800, padding:'4px 14px', borderRadius:'100px', whiteSpace:'nowrap' }}>TERPOPULER</div>}
@@ -318,7 +301,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <p style={{ textAlign:'center', marginTop:'20px', color:'rgba(255,255,255,.35)', fontSize:'.8rem' }}>Semua paket sudah termasuk gratis 100 pesan pertama · Tidak perlu kartu kredit · Cancel kapan saja</p>
+          <p style={{ textAlign:'center', marginTop:'20px', color:'rgba(255,255,255,.35)', fontSize:'.8rem' }}>Semua paket sudah termasuk toko online + hosting gratis · Tidak perlu kartu kredit · Cancel kapan saja</p>
         </div>
       </section>
 
@@ -327,14 +310,15 @@ export default function Home() {
         <div style={{ maxWidth:'1000px', margin:'0 auto' }}>
           <div style={{ textAlign:'center', marginBottom:'50px' }}>
             <div style={{ display:'inline-block', background:'rgba(37,211,102,.1)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'100px', padding:'5px 14px', marginBottom:'14px', color:'#25d366', fontSize:'.78rem', fontWeight:700 }}>CARA KERJA</div>
-            <h2 style={{ fontSize:'2.2rem', fontWeight:800, letterSpacing:'-.5px' }}>Aktif dalam 15 menit</h2>
+            <h2 style={{ fontSize:'2.2rem', fontWeight:800, letterSpacing:'-.5px' }}>Aktif dalam 24 Jam</h2>
+            <p style={{ color:'rgba(255,255,255,.45)', fontSize:'.875rem', marginTop:'10px' }}>Tim kami siap membantu setup bot kamu setelah pendaftaran</p>
           </div>
           <div className="steps-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'20px' }}>
             {[
-              { step:'01', icon:'📝', title:'Daftar Akun', desc:'Buat akun gratis, tidak perlu kartu kredit.' },
-              { step:'02', icon:'🏪', title:'Isi Info Bisnis', desc:'Masukkan info toko, produk, dan layanan.' },
-              { step:'03', icon:'💳', title:'Pilih Paket', desc:'Mulai Rp 99rb/bln atau hubungi sales untuk Enterprise.' },
-              { step:'04', icon:'🚀', title:'Bot Aktif!', desc:'WhatsApp-mu langsung balas pelanggan otomatis.' },
+              { step:'01', icon:'📝', title:'Daftar Akun', desc:'Buat akun gratis, isi info toko dan produk. Tidak perlu kartu kredit.' },
+              { step:'02', icon:'📱', title:'Siapkan Nomor WA', desc:'Siapkan SIM card baru khusus untuk bot tokomu (Telkomsel ~Rp 35rb).' },
+              { step:'03', icon:'💳', title:'Pilih Paket & Bayar', desc:'Mulai Rp 99rb/bln. Kirim nomor WA ke tim kami via WhatsApp.' },
+              { step:'04', icon:'🚀', title:'Bot Aktif dalam 24 Jam!', desc:'Bot WA + toko online kamu langsung aktif melayani pelanggan otomatis.' },
             ].map((s,i)=>(
               <div key={i} style={{ textAlign:'center', position:'relative' }}>
                 {i<3&&<div style={{ position:'absolute', top:'25px', left:'60%', right:'-10px', height:'1px', background:'linear-gradient(90deg,rgba(37,211,102,.3),transparent)' }}/>}
@@ -344,6 +328,17 @@ export default function Home() {
                 <p style={{ color:'rgba(255,255,255,.45)', fontSize:'.78rem', lineHeight:1.6 }}>{s.desc}</p>
               </div>
             ))}
+          </div>
+          {/* Info tambahan */}
+          <div style={{ marginTop:'40px', background:'rgba(37,211,102,.06)', border:'1px solid rgba(37,211,102,.15)', borderRadius:'16px', padding:'20px 24px', display:'flex', alignItems:'center', gap:'16px', flexWrap:'wrap' }}>
+            <span style={{ fontSize:'1.5rem' }}>💡</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:700, fontSize:'.875rem', marginBottom:'4px' }}>Butuh bantuan setup?</div>
+              <div style={{ fontSize:'.78rem', color:'rgba(255,255,255,.5)' }}>Tim kami siap membantu via WhatsApp <strong style={{ color:'#25d366' }}>+62 813-2531-210</strong> · Senin-Sabtu 08.00-21.00 WIB</div>
+            </div>
+            <a href="https://wa.me/628132531210?text=Halo Mahirusaha, saya ingin tanya tentang aktivasi bot" target="_blank" rel="noopener noreferrer" style={{ background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'10px 20px', borderRadius:'10px', textDecoration:'none', fontWeight:700, fontSize:'.82rem', whiteSpace:'nowrap' }}>
+              💬 Chat Sekarang
+            </a>
           </div>
         </div>
       </section>
@@ -364,8 +359,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-
-            {/* Form */}
             <div>
               {formStatus==='success' ? (
                 <div style={{ textAlign:'center', padding:'40px 20px' }}>
@@ -406,7 +399,7 @@ export default function Home() {
                 🏢 Solusi Enterprise
               </a>
             </div>
-            <p style={{ marginTop:'16px', fontSize:'.75rem', color:'rgba(255,255,255,.3)' }}>Tidak perlu kartu kredit · Setup 15 menit · Cancel kapan saja</p>
+            <p style={{ marginTop:'16px', fontSize:'.75rem', color:'rgba(255,255,255,.3)' }}>Bot WA + Toko Online Gratis · Tidak perlu kartu kredit · Cancel kapan saja</p>
           </div>
         </div>
       </section>
@@ -420,12 +413,10 @@ export default function Home() {
         </div>
         <p style={{ color:'rgba(255,255,255,.25)', fontSize:'.75rem' }}>© 2026 Mahirusaha. All rights reserved.</p>
         <div style={{ display:'flex', gap:'20px' }}>
-          
-		  <a href="/privasi" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Privasi</a>
-		  <a href="/syarat" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Syarat Layanan</a>
-		  <a href="#enterprise" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Hubungi Kami</a>
-		
-		</div>
+          <a href="/privasi" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Privasi</a>
+          <a href="/syarat" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Syarat Layanan</a>
+          <a href="#enterprise" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Hubungi Kami</a>
+        </div>
       </footer>
     </main>
   )
