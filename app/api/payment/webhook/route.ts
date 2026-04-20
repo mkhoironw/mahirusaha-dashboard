@@ -10,7 +10,6 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-
     const {
       order_id,
       status_code,
@@ -28,15 +27,12 @@ export async function POST(request: NextRequest) {
       .digest('hex')
 
     if (signature_key !== expectedSignature) {
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     // Cek status pembayaran
     const isPaid =
-      transaction_status === 'capture' && fraud_status === 'accept' ||
+      (transaction_status === 'capture' && fraud_status === 'accept') ||
       transaction_status === 'settlement'
 
     const isFailed =
@@ -58,19 +54,24 @@ export async function POST(request: NextRequest) {
 
     if (isPaid && subscription) {
       const client = subscription.clients
+      const sekarang = new Date()
 
-      // Update status klien menjadi aktif
+      // ================================================
+      // 1. Update status klien menjadi aktif
+      // ================================================
       await supabase
         .from('clients')
         .update({
           status: 'aktif',
           paket: subscription.paket,
-          tanggal_aktif: new Date().toISOString(),
+          tanggal_aktif: sekarang.toISOString(),
           tanggal_berakhir: subscription.tanggal_berakhir,
         })
         .eq('id', subscription.client_id)
 
-      // Aktifkan semua toko klien
+      // ================================================
+      // 2. Aktifkan semua toko klien
+      // ================================================
       await supabase
         .from('stores')
         .update({
@@ -80,7 +81,9 @@ export async function POST(request: NextRequest) {
         })
         .eq('client_id', subscription.client_id)
 
-      // Update onboarding steps
+      // ================================================
+      // 3. Update onboarding steps
+      // ================================================
       await supabase
         .from('onboarding_steps')
         .update({
@@ -91,26 +94,81 @@ export async function POST(request: NextRequest) {
         })
         .eq('client_id', subscription.client_id)
 
-      // Kirim notifikasi ke klien via WA
-      await kirimNotifikasiWA(client.nomor_wa_pemilik, subscription.paket, subscription.periode)
+      // ================================================
+      // 4. Hitung & simpan komisi partner (fleksibel)
+      // ================================================
+      try {
+        const { data: referral } = await supabase
+          .from('referrals')
+          .select('referrer_id, sudah_diklaim')
+          .eq('referred_id', subscription.client_id)
+          .single()
 
-      // Simpan notifikasi di database
+        if (referral?.referrer_id) {
+          const { data: partner } = await supabase
+            .from('clients')
+            .select('id, nama_pemilik, nomor_wa_pemilik, is_partner, komisi_persen')
+            .eq('id', referral.referrer_id)
+            .single()
+
+          if (partner?.is_partner) {
+            // Pakai komisi_persen dari database, fallback ke 15%
+            const komisiPersen = partner.komisi_persen || 15
+            const jumlahKomisi = Math.round(parseInt(gross_amount) * (komisiPersen / 100))
+            const bulan = sekarang.getMonth() + 1
+            const tahun = sekarang.getFullYear()
+
+            // Simpan komisi ke database
+            await supabase.from('partner_komisi').insert({
+              partner_client_id: partner.id,
+              referred_client_id: subscription.client_id,
+              jumlah_komisi: jumlahKomisi,
+              bulan,
+              tahun,
+              status: 'pending',
+            })
+
+            // Kirim notifikasi WA ke partner
+            await kirimNotifikasiWA(
+              partner.nomor_wa_pemilik,
+              `💰 *Komisi Mahirusaha Masuk!*\n\nHalo ${partner.nama_pemilik}!\n\nKlien referral kamu baru saja melakukan pembayaran.\n\n📦 Paket: ${subscription.paket.toUpperCase()}\n📊 Komisi: ${komisiPersen}%\n💵 Jumlah: Rp ${jumlahKomisi.toLocaleString('id-ID')}\n📅 Periode: ${bulan}/${tahun}\n\nLihat detail di:\nmahirusaha.com/partner/dashboard\n\nTerima kasih! 🙏`
+            )
+
+            console.log(`💰 Komisi ${komisiPersen}% = Rp ${jumlahKomisi} → partner ${partner.id}`)
+          }
+        }
+
+        // Tandai referral sudah diklaim
+        await supabase
+          .from('referrals')
+          .update({ sudah_diklaim: true, diklaim_at: sekarang.toISOString() })
+          .eq('referred_id', subscription.client_id)
+          .eq('sudah_diklaim', false)
+
+      } catch (err) {
+        console.error('Error hitung komisi partner:', err)
+      }
+
+      // ================================================
+      // 5. Kirim notifikasi ke klien via WA
+      // ================================================
+      await kirimNotifikasiWA(
+        client.nomor_wa_pemilik,
+        `🎉 *Selamat! Pembayaran Mahirusaha Berhasil!*\n\nPaket *${subscription.paket.toUpperCase()}* (${subscription.periode}) sudah aktif.\n\n✅ Bot WhatsApp kamu sudah aktif!\n✅ Toko online sudah bisa diakses!\n\nMasuk ke dashboard:\nmahirusaha.com/dashboard\n\nTerima kasih sudah mempercayai Mahirusaha 🙏`
+      )
+
+      // ================================================
+      // 6. Simpan notifikasi di database
+      // ================================================
       await supabase.from('notifications').insert({
         client_id: subscription.client_id,
         tipe: 'payment_success',
         judul: 'Pembayaran Berhasil!',
-        pesan: `Selamat! Paket ${subscription.paket} kamu sudah aktif. Bot WhatsApp siap menerima pesan pelanggan.`,
+        pesan: `Selamat! Paket ${subscription.paket} kamu sudah aktif.`,
         channel: 'wa',
         status: 'terkirim',
       })
 
-	// Tandai referral sudah diklaim
-	await supabase
-	.from('referrals')
-	.update({ sudah_diklaim: true, diklaim_at: new Date().toISOString() })
-	.eq('referred_id', subscription.client_id)
-	.eq('sudah_diklaim', false)
-		
       console.log(`✅ Pembayaran berhasil untuk klien ${subscription.client_id}`)
     }
 
@@ -118,14 +176,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Webhook error:', error)
-    return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
   }
 }
 
-// Helper: ambil limit pesan berdasarkan paket
 function getPesanLimit(paket: string): number {
   const limits: Record<string, number> = {
     starter: 1000,
@@ -136,11 +190,9 @@ function getPesanLimit(paket: string): number {
   return limits[paket] || 1000
 }
 
-// Helper: kirim notifikasi WA ke klien
-async function kirimNotifikasiWA(nomor: string, paket: string, periode: string) {
+async function kirimNotifikasiWA(nomor: string, pesan: string) {
+  if (!nomor) return
   try {
-    const pesan = `🎉 *Selamat! Pembayaran Mahirusaha Berhasil!*\n\nPaket *${paket.toUpperCase()}* (${periode}) sudah aktif.\n\n✅ Bot WhatsApp kamu sudah aktif dan siap menerima pesan pelanggan!\n\nMasuk ke dashboard: mahirusaha-dashboard.vercel.app/dashboard\n\nTerima kasih sudah mempercayai Mahirusaha 🙏`
-
     await fetch(
       `https://graph.facebook.com/v22.0/${process.env.PHONE_NUMBER_ID}/messages`,
       {

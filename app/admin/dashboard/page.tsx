@@ -1,16 +1,19 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
+
 interface Admin {
   id: string
   nama: string
   email: string
   role: string
 }
+
 interface Client {
   id: string
   nama_pemilik: string
@@ -20,7 +23,10 @@ interface Client {
   tanggal_berakhir: string
   nomor_wa_pemilik: string
   created_at: string
+  is_partner: boolean
+  komisi_persen: number
 }
+
 interface Store {
   id: string
   client_id: string
@@ -33,6 +39,7 @@ interface Store {
   batas_pesan_bulan: number
   created_at: string
 }
+
 interface EnterpriseLead {
   id: string
   nama_pic: string
@@ -43,6 +50,19 @@ interface EnterpriseLead {
   status: string
   created_at: string
 }
+
+interface PartnerKomisi {
+  id: string
+  partner_client_id: string
+  referred_client_id: string
+  jumlah_komisi: number
+  bulan: number
+  tahun: number
+  status: string
+  tanggal_dibayar: string
+  created_at: string
+}
+
 export default function AdminDashboard() {
   const [admin, setAdmin] = useState<Admin | null>(null)
   const [activeMenu, setActiveMenu] = useState('overview')
@@ -50,14 +70,11 @@ export default function AdminDashboard() {
   const [clients, setClients] = useState<Client[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [leads, setLeads] = useState<EnterpriseLead[]>([])
+  const [komisiList, setKomisiList] = useState<PartnerKomisi[]>([])
   const [stats, setStats] = useState({
-    totalKlien: 0,
-    klienAktif: 0,
-    klienTrial: 0,
-    totalToko: 0,
-    tokoAktif: 0,
-    totalLeads: 0,
-    mrr: 0,
+    totalKlien: 0, klienAktif: 0, klienTrial: 0,
+    totalToko: 0, tokoAktif: 0, totalLeads: 0,
+    mrr: 0, totalPartner: 0, totalKomisiPending: 0,
   })
   const [editingStore, setEditingStore] = useState<string | null>(null)
   const [newNomorWA, setNewNomorWA] = useState('')
@@ -65,41 +82,38 @@ export default function AdminDashboard() {
   const [searchKlien, setSearchKlien] = useState('')
   const [filterStatus, setFilterStatus] = useState('semua')
   const [sendingEmail, setSendingEmail] = useState<string | null>(null)
+  const [editingPartner, setEditingPartner] = useState<string | null>(null)
+  const [newKomisiPersen, setNewKomisiPersen] = useState(15)
 
   useEffect(() => {
     const session = localStorage.getItem('mahirusaha_admin')
-    if (!session) {
-      window.location.href = '/admin'
-      return
-    }
-    const adminData = JSON.parse(session)
-    setAdmin(adminData)
+    if (!session) { window.location.href = '/admin'; return }
+    setAdmin(JSON.parse(session))
     loadAllData()
   }, [])
 
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const { data: clientsData } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false })
-      const { data: storesData } = await supabase
-        .from('stores')
-        .select('*')
-        .order('created_at', { ascending: false })
-      const { data: leadsData } = await supabase
-        .from('enterprise_leads')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const { data: clientsData } = await supabase.from('clients').select('*').order('created_at', { ascending: false })
+      const { data: storesData } = await supabase.from('stores').select('*').order('created_at', { ascending: false })
+      const { data: leadsData } = await supabase.from('enterprise_leads').select('*').order('created_at', { ascending: false })
+      const { data: komisiData } = await supabase.from('partner_komisi').select('*').order('created_at', { ascending: false })
+
       const c = clientsData || []
       const s = storesData || []
       const l = leadsData || []
+      const k = komisiData || []
+
       setClients(c)
       setStores(s)
       setLeads(l)
+      setKomisiList(k)
+
       const hargaPaket: Record<string, number> = { starter: 99000, pro: 299000, bisnis: 699000 }
       const mrr = c.filter(cl => cl.status === 'aktif').reduce((sum, cl) => sum + (hargaPaket[cl.paket] || 0), 0)
+      const totalKomisiPending = k.filter(km => km.status === 'pending').reduce((sum, km) => sum + km.jumlah_komisi, 0)
+
       setStats({
         totalKlien: c.length,
         klienAktif: c.filter(cl => cl.status === 'aktif').length,
@@ -108,6 +122,8 @@ export default function AdminDashboard() {
         tokoAktif: s.filter(st => st.aktif).length,
         totalLeads: l.length,
         mrr,
+        totalPartner: c.filter(cl => cl.is_partner).length,
+        totalKomisiPending,
       })
     } catch (err) {
       console.error(err)
@@ -125,31 +141,23 @@ export default function AdminDashboard() {
     if (!newNomorWA.trim()) return
     setSaving(true)
     try {
-      await supabase
-        .from('stores')
-        .update({ nomor_wa_toko: newNomorWA, updated_at: new Date().toISOString() })
-        .eq('id', storeId)
+      await supabase.from('stores').update({ nomor_wa_toko: newNomorWA, updated_at: new Date().toISOString() }).eq('id', storeId)
       setStores(prev => prev.map(s => s.id === storeId ? { ...s, nomor_wa_toko: newNomorWA } : s))
       setEditingStore(null)
       setNewNomorWA('')
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setSaving(false)
-    }
+    } catch (err) { console.error(err) }
+    finally { setSaving(false) }
   }
 
   const handleSuspendKlien = async (clientId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'suspend' ? 'trial' : 'suspend'
-    const confirm = window.confirm(`${newStatus === 'suspend' ? 'Suspend' : 'Aktifkan kembali'} klien ini?`)
-    if (!confirm) return
+    if (!window.confirm(`${newStatus === 'suspend' ? 'Suspend' : 'Aktifkan kembali'} klien ini?`)) return
     await supabase.from('clients').update({ status: newStatus }).eq('id', clientId)
     setClients(prev => prev.map(c => c.id === clientId ? { ...c, status: newStatus } : c))
   }
 
   const handleKirimNotifBotAktif = async (clientId: string, nama: string, email: string) => {
-    const confirm = window.confirm(`Kirim email "Bot Aktif" ke ${nama} (${email})?`)
-    if (!confirm) return
+    if (!window.confirm(`Kirim email "Bot Aktif" ke ${nama} (${email})?`)) return
     setSendingEmail(clientId)
     try {
       const response = await fetch('/api/email/bot-aktif', {
@@ -157,16 +165,34 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_id: clientId, nama, email })
       })
-      if (response.ok) {
-        alert(`✅ Email "Bot Aktif" berhasil dikirim ke ${email}`)
-      } else {
-        alert('❌ Gagal kirim email. Coba lagi.')
-      }
-    } catch {
-      alert('❌ Terjadi kesalahan.')
-    } finally {
-      setSendingEmail(null)
-    }
+      if (response.ok) alert(`✅ Email "Bot Aktif" berhasil dikirim ke ${email}`)
+      else alert('❌ Gagal kirim email.')
+    } catch { alert('❌ Terjadi kesalahan.') }
+    finally { setSendingEmail(null) }
+  }
+
+  const handleTogglePartner = async (clientId: string, isPartner: boolean) => {
+    const action = isPartner ? 'Nonaktifkan' : 'Aktifkan'
+    if (!window.confirm(`${action} status partner untuk klien ini?`)) return
+    await supabase.from('clients').update({ is_partner: !isPartner }).eq('id', clientId)
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, is_partner: !isPartner } : c))
+  }
+
+  const handleUpdateKomisi = async (clientId: string) => {
+    setSaving(true)
+    try {
+      await supabase.from('clients').update({ komisi_persen: newKomisiPersen }).eq('id', clientId)
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, komisi_persen: newKomisiPersen } : c))
+      setEditingPartner(null)
+      alert(`✅ Komisi berhasil diupdate ke ${newKomisiPersen}%`)
+    } catch { alert('❌ Gagal update komisi.') }
+    finally { setSaving(false) }
+  }
+
+  const handleBayarKomisi = async (komisiId: string) => {
+    if (!window.confirm('Tandai komisi ini sudah dibayar?')) return
+    await supabase.from('partner_komisi').update({ status: 'dibayar', tanggal_dibayar: new Date().toISOString() }).eq('id', komisiId)
+    setKomisiList(prev => prev.map(k => k.id === komisiId ? { ...k, status: 'dibayar', tanggal_dibayar: new Date().toISOString() } : k))
   }
 
   const handleUpdateLeadStatus = async (leadId: string, newStatus: string) => {
@@ -177,15 +203,17 @@ export default function AdminDashboard() {
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 
   const filteredClients = clients.filter(c => {
-    const matchSearch = c.nama_pemilik.toLowerCase().includes(searchKlien.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchKlien.toLowerCase())
+    const matchSearch = c.nama_pemilik.toLowerCase().includes(searchKlien.toLowerCase()) || c.email.toLowerCase().includes(searchKlien.toLowerCase())
     const matchStatus = filterStatus === 'semua' || c.status === filterStatus
     return matchSearch && matchStatus
   })
 
+  const partners = clients.filter(c => c.is_partner)
+
   const menuItems = [
     { id: 'overview', icon: '📊', label: 'Overview' },
     { id: 'klien', icon: '👥', label: 'Klien' },
+    { id: 'partner', icon: '🤝', label: 'Partner' },
     { id: 'toko', icon: '🏪', label: 'Toko' },
     { id: 'leads', icon: '📋', label: 'Enterprise Leads' },
     { id: 'revenue', icon: '💰', label: 'Revenue' },
@@ -208,6 +236,8 @@ export default function AdminDashboard() {
     return map[paket] || paket
   }
 
+  const namaBulan = (bulan: number) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][bulan - 1]
+
   if (loading) {
     return (
       <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", background: '#070d1a', color: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -224,10 +254,9 @@ export default function AdminDashboard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        input:focus { border-color: rgba(37,211,102,0.5) !important; outline: none; }
+        input:focus, select:focus { border-color: rgba(37,211,102,0.5) !important; outline: none; }
         input::placeholder { color: rgba(255,255,255,0.25); }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 100px; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         .fadeUp { animation: fadeUp 0.4s ease forwards; }
@@ -247,12 +276,7 @@ export default function AdminDashboard() {
         </div>
         <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
           {menuItems.map(item => (
-            <div
-              key={item.id}
-              className="menu-item"
-              onClick={() => setActiveMenu(item.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', marginBottom: '2px', cursor: 'pointer', background: activeMenu === item.id ? 'rgba(37,211,102,0.1)' : 'transparent', border: activeMenu === item.id ? '1px solid rgba(37,211,102,0.2)' : '1px solid transparent' }}
-            >
+            <div key={item.id} className="menu-item" onClick={() => setActiveMenu(item.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', marginBottom: '2px', cursor: 'pointer', background: activeMenu === item.id ? 'rgba(37,211,102,0.1)' : 'transparent', border: activeMenu === item.id ? '1px solid rgba(37,211,102,0.2)' : '1px solid transparent' }}>
               <span style={{ fontSize: '1rem' }}>{item.icon}</span>
               <span style={{ fontSize: '0.875rem', fontWeight: activeMenu === item.id ? 600 : 500, color: activeMenu === item.id ? '#25d366' : 'rgba(255,255,255,0.65)' }}>{item.label}</span>
             </div>
@@ -263,10 +287,7 @@ export default function AdminDashboard() {
             <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{admin?.nama}</div>
             <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>{admin?.role}</div>
           </div>
-          <button
-            onClick={handleLogout}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.875rem' }}
-          >
+          <button onClick={handleLogout} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.875rem' }}>
             <span>🚪</span> Keluar
           </button>
         </div>
@@ -278,10 +299,7 @@ export default function AdminDashboard() {
           <h1 style={{ fontSize: '1rem', fontWeight: 700 }}>
             {menuItems.find(m => m.id === activeMenu)?.icon} {menuItems.find(m => m.id === activeMenu)?.label}
           </h1>
-          <button
-            onClick={loadAllData}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem' }}
-          >
+          <button onClick={loadAllData} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem' }}>
             🔄 Refresh
           </button>
         </div>
@@ -291,7 +309,7 @@ export default function AdminDashboard() {
           {/* ===== OVERVIEW ===== */}
           {activeMenu === 'overview' && (
             <div className="fadeUp">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '28px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
                 {[
                   { label: 'Total Klien', value: stats.totalKlien, icon: '👥', color: '#25d366' },
                   { label: 'Klien Aktif', value: stats.klienAktif, icon: '✅', color: '#25d366' },
@@ -305,11 +323,12 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '28px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '28px' }}>
                 {[
                   { label: 'Total Toko', value: stats.totalToko, icon: '🏪', color: '#fff' },
                   { label: 'Toko Aktif', value: stats.tokoAktif, icon: '🟢', color: '#25d366' },
-                  { label: 'Enterprise Leads', value: stats.totalLeads, icon: '📋', color: '#378ADD' },
+                  { label: 'Total Partner', value: stats.totalPartner, icon: '🤝', color: '#818cf8' },
+                  { label: 'Komisi Pending', value: fmt(stats.totalKomisiPending), icon: '⏳', color: '#EF9F27' },
                 ].map(stat => (
                   <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px' }}>
                     <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{stat.icon}</div>
@@ -328,6 +347,7 @@ export default function AdminDashboard() {
                         <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{c.email}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {c.is_partner && <span style={{ fontSize: '0.68rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>Partner {c.komisi_persen}%</span>}
                         <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '100px' }}>{getPaketLabel(c.paket)}</span>
                         <span style={{ fontSize: '0.72rem', color: getStatusColor(c.status), fontWeight: 600 }}>{getStatusLabel(c.status)}</span>
                       </div>
@@ -342,71 +362,154 @@ export default function AdminDashboard() {
           {activeMenu === 'klien' && (
             <div className="fadeUp">
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                <input
-                  style={{ flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }}
-                  placeholder="🔍 Cari nama atau email..."
-                  value={searchKlien}
-                  onChange={e => setSearchKlien(e.target.value)}
-                />
-                <select
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }}
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                >
+                <input style={{ flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="🔍 Cari nama atau email..." value={searchKlien} onChange={e => setSearchKlien(e.target.value)} />
+                <select style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                   {['semua', 'aktif', 'trial', 'suspend'].map(s => (
                     <option key={s} value={s} style={{ background: '#111827' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                   ))}
                 </select>
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px' }}>
-                {filteredClients.length} klien ditemukan
-              </div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px' }}>{filteredClients.length} klien ditemukan</div>
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1.5fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <span>Nama</span>
-                  <span>Email</span>
-                  <span>Paket</span>
-                  <span>Status</span>
-                  <span>Bergabung</span>
-                  <span>Aksi</span>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 2fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <span>Nama</span><span>Email</span><span>Paket</span><span>Status</span><span>Bergabung</span><span>Aksi</span>
                 </div>
                 {filteredClients.map((c, i) => (
-                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1.5fr', gap: '12px', padding: '14px 16px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
+                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 2fr', gap: '12px', padding: '14px 16px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.nama_pemilik}</div>
                       <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>{c.nomor_wa_pemilik || '-'}</div>
+                      {c.is_partner && <span style={{ fontSize: '0.65rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '1px 6px', borderRadius: '100px', fontWeight: 600 }}>Partner {c.komisi_persen}%</span>}
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
-                    <div>
-                      <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '100px' }}>{getPaketLabel(c.paket)}</span>
-                    </div>
+                    <div><span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '100px' }}>{getPaketLabel(c.paket)}</span></div>
                     <div style={{ fontSize: '0.78rem', color: getStatusColor(c.status), fontWeight: 600 }}>{getStatusLabel(c.status)}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                      {new Date(c.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      <button
-                        className="btn-action"
-                        onClick={() => handleSuspendKlien(c.id, c.status)}
-                        style={{ fontSize: '0.68rem', padding: '5px 8px', borderRadius: '6px', border: `1px solid ${c.status === 'suspend' ? 'rgba(37,211,102,0.3)' : 'rgba(239,68,68,0.3)'}`, background: 'transparent', color: c.status === 'suspend' ? '#25d366' : '#EF4444', cursor: 'pointer', fontFamily: 'inherit' }}
-                      >
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{new Date(c.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}</div>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      <button className="btn-action" onClick={() => handleSuspendKlien(c.id, c.status)} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: `1px solid ${c.status === 'suspend' ? 'rgba(37,211,102,0.3)' : 'rgba(239,68,68,0.3)'}`, background: 'transparent', color: c.status === 'suspend' ? '#25d366' : '#EF4444', cursor: 'pointer', fontFamily: 'inherit' }}>
                         {c.status === 'suspend' ? 'Aktifkan' : 'Suspend'}
                       </button>
-                      <button
-                        className="btn-action"
-                        onClick={() => handleKirimNotifBotAktif(c.id, c.nama_pemilik, c.email)}
-                        disabled={sendingEmail === c.id}
-                        style={{ fontSize: '0.68rem', padding: '5px 8px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', opacity: sendingEmail === c.id ? 0.5 : 1 }}
-                      >
+                      <button className="btn-action" onClick={() => handleKirimNotifBotAktif(c.id, c.nama_pemilik, c.email)} disabled={sendingEmail === c.id} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', opacity: sendingEmail === c.id ? 0.5 : 1 }}>
                         {sendingEmail === c.id ? '⏳' : '📧 Bot Aktif'}
+                      </button>
+                      <button className="btn-action" onClick={() => handleTogglePartner(c.id, c.is_partner)} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: `1px solid ${c.is_partner ? 'rgba(129,140,248,0.3)' : 'rgba(255,255,255,0.15)'}`, background: 'transparent', color: c.is_partner ? '#818cf8' : 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {c.is_partner ? '🤝 Partner' : 'Set Partner'}
                       </button>
                     </div>
                   </div>
                 ))}
                 {filteredClients.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Tidak ada klien ditemukan</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== PARTNER ===== */}
+          {activeMenu === 'partner' && (
+            <div className="fadeUp">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>{partners.length} partner aktif</div>
+              </div>
+
+              {/* Daftar Partner */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px' }}>
+                <div style={{ padding: '14px 20px', background: 'rgba(129,140,248,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <h3 style={{ fontWeight: 700, fontSize: '0.875rem', color: '#818cf8' }}>🤝 Daftar Partner</h3>
+                </div>
+                {partners.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
-                    Tidak ada klien ditemukan
+                    Belum ada partner — set partner dari menu Klien
                   </div>
+                ) : (
+                  partners.map((p, i) => (
+                    <div key={p.id} style={{ padding: '16px 20px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{p.nama_pemilik}</div>
+                            <span style={{ fontSize: '0.68rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '100px', fontWeight: 700 }}>Partner</span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{p.email} · {p.nomor_wa_pemilik}</div>
+                          <div style={{ marginTop: '8px', display: 'flex', gap: '16px', fontSize: '0.75rem' }}>
+                            <span style={{ color: 'rgba(255,255,255,0.5)' }}>Klien dibawa: <strong style={{ color: '#fff' }}>{komisiList.filter(k => k.partner_client_id === p.id).length}</strong></span>
+                            <span style={{ color: 'rgba(255,255,255,0.5)' }}>Total komisi: <strong style={{ color: '#25d366' }}>{fmt(komisiList.filter(k => k.partner_client_id === p.id).reduce((sum, k) => sum + k.jumlah_komisi, 0))}</strong></span>
+                            <span style={{ color: 'rgba(255,255,255,0.5)' }}>Pending: <strong style={{ color: '#EF9F27' }}>{fmt(komisiList.filter(k => k.partner_client_id === p.id && k.status === 'pending').reduce((sum, k) => sum + k.jumlah_komisi, 0))}</strong></span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {editingPartner === p.id ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={newKomisiPersen}
+                                onChange={e => setNewKomisiPersen(parseInt(e.target.value))}
+                                style={{ width: '60px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(37,211,102,0.3)', color: '#fff', padding: '6px 10px', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none', textAlign: 'center' }}
+                              />
+                              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem' }}>%</span>
+                              <button onClick={() => handleUpdateKomisi(p.id)} disabled={saving} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                {saving ? '...' : 'Simpan'}
+                              </button>
+                              <button onClick={() => setEditingPartner(null)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}>Batal</button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ textAlign: 'center', background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)', borderRadius: '10px', padding: '8px 16px' }}>
+                                <div style={{ fontWeight: 800, fontSize: '1.3rem', color: '#818cf8' }}>{p.komisi_persen}%</div>
+                                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Komisi</div>
+                              </div>
+                              <button className="btn-action" onClick={() => { setEditingPartner(p.id); setNewKomisiPersen(p.komisi_persen || 15) }} style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 600 }}>
+                                ✏️ Edit Komisi
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Riwayat Komisi */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden' }}>
+                <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontWeight: 700, fontSize: '0.875rem' }}>💰 Riwayat Komisi</h3>
+                  <div style={{ fontSize: '0.75rem', color: '#EF9F27' }}>
+                    Pending: {fmt(komisiList.filter(k => k.status === 'pending').reduce((sum, k) => sum + k.jumlah_komisi, 0))}
+                  </div>
+                </div>
+                {komisiList.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Belum ada komisi</div>
+                ) : (
+                  komisiList.map((k, i) => {
+                    const partner = clients.find(c => c.id === k.partner_client_id)
+                    const referred = clients.find(c => c.id === k.referred_client_id)
+                    return (
+                      <div key={k.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '12px', padding: '14px 20px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{partner?.nama_pemilik || '-'}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Partner</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)' }}>{referred?.nama_pemilik || '-'}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Klien referral</div>
+                        </div>
+                        <div style={{ fontWeight: 700, color: '#25d366', fontSize: '0.82rem' }}>{fmt(k.jumlah_komisi)}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{namaBulan(k.bulan)} {k.tahun}</div>
+                        <div>
+                          {k.status === 'pending' ? (
+                            <button className="btn-action" onClick={() => handleBayarKomisi(k.id)} style={{ fontSize: '0.68rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                              ✅ Tandai Dibayar
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.72rem', color: '#25d366', fontWeight: 600 }}>✅ Dibayar</span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })
                 )}
               </div>
             </div>
@@ -415,17 +518,10 @@ export default function AdminDashboard() {
           {/* ===== TOKO ===== */}
           {activeMenu === 'toko' && (
             <div className="fadeUp">
-              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>
-                {stores.length} toko terdaftar · {stores.filter(s => s.aktif).length} aktif
-              </div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>{stores.length} toko terdaftar · {stores.filter(s => s.aktif).length} aktif</div>
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 0.8fr 1fr 1.2fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  <span>Nama Toko</span>
-                  <span>Nomor WA</span>
-                  <span>Pesan</span>
-                  <span>Trial</span>
-                  <span>Status</span>
-                  <span>Aksi</span>
+                  <span>Nama Toko</span><span>Nomor WA</span><span>Pesan</span><span>Trial</span><span>Status</span><span>Aksi</span>
                 </div>
                 {stores.map((s, i) => (
                   <div key={s.id} style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
@@ -433,59 +529,29 @@ export default function AdminDashboard() {
                       <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{s.nama_toko}</div>
                       <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)' }}>{s.nomor_wa_toko}</div>
                       <div>
-                        <div style={{ fontSize: '0.78rem', marginBottom: '4px' }}>
-                          {s.pesan_terpakai} / {s.batas_pesan_bulan}
-                        </div>
+                        <div style={{ fontSize: '0.78rem', marginBottom: '4px' }}>{s.pesan_terpakai} / {s.batas_pesan_bulan}</div>
                         <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '100px', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${Math.min((s.pesan_terpakai / s.batas_pesan_bulan) * 100, 100)}%`, background: '#25d366', borderRadius: '100px' }} />
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: s.is_trial ? '#EF9F27' : 'rgba(255,255,255,0.4)' }}>
-                        {s.is_trial ? 'Trial' : 'Paid'}
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: s.aktif ? '#25d366' : '#EF4444', fontWeight: 600 }}>
-                        {s.aktif ? '🟢 Aktif' : '🔴 Mati'}
-                      </div>
+                      <div style={{ fontSize: '0.75rem', color: s.is_trial ? '#EF9F27' : 'rgba(255,255,255,0.4)' }}>{s.is_trial ? 'Trial' : 'Paid'}</div>
+                      <div style={{ fontSize: '0.78rem', color: s.aktif ? '#25d366' : '#EF4444', fontWeight: 600 }}>{s.aktif ? '🟢 Aktif' : '🔴 Mati'}</div>
                       <div>
-                        <button
-                          className="btn-action"
-                          onClick={() => { setEditingStore(s.id); setNewNomorWA(s.nomor_wa_toko) }}
-                          style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}
-                        >
+                        <button className="btn-action" onClick={() => { setEditingStore(s.id); setNewNomorWA(s.nomor_wa_toko) }} style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}>
                           ✏️ Ganti Nomor
                         </button>
                       </div>
                     </div>
                     {editingStore === s.id && (
                       <div style={{ padding: '0 16px 16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        <input
-                          style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(37,211,102,0.3)', color: '#fff', padding: '9px 12px', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }}
-                          placeholder="628xxxxxxxxxx"
-                          value={newNomorWA}
-                          onChange={e => setNewNomorWA(e.target.value)}
-                        />
-                        <button
-                          onClick={() => handleUpdateNomorWA(s.id)}
-                          disabled={saving}
-                          style={{ padding: '9px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}
-                        >
-                          {saving ? '...' : 'Simpan'}
-                        </button>
-                        <button
-                          onClick={() => setEditingStore(null)}
-                          style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}
-                        >
-                          Batal
-                        </button>
+                        <input style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(37,211,102,0.3)', color: '#fff', padding: '9px 12px', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="628xxxxxxxxxx" value={newNomorWA} onChange={e => setNewNomorWA(e.target.value)} />
+                        <button onClick={() => handleUpdateNomorWA(s.id)} disabled={saving} style={{ padding: '9px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>{saving ? '...' : 'Simpan'}</button>
+                        <button onClick={() => setEditingStore(null)} style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}>Batal</button>
                       </div>
                     )}
                   </div>
                 ))}
-                {stores.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
-                    Belum ada toko terdaftar
-                  </div>
-                )}
+                {stores.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Belum ada toko terdaftar</div>}
               </div>
             </div>
           )}
@@ -493,9 +559,7 @@ export default function AdminDashboard() {
           {/* ===== ENTERPRISE LEADS ===== */}
           {activeMenu === 'leads' && (
             <div className="fadeUp">
-              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>
-                {leads.length} leads masuk
-              </div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>{leads.length} leads masuk</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {leads.map(lead => (
                   <div key={lead.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px 20px' }}>
@@ -507,32 +571,17 @@ export default function AdminDashboard() {
                           <span>📧 {lead.email}</span>
                           {lead.nomor_wa && <span>📱 {lead.nomor_wa}</span>}
                         </div>
-                        {lead.kebutuhan && (
-                          <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '8px 12px', lineHeight: 1.6 }}>
-                            {lead.kebutuhan}
-                          </div>
-                        )}
-                        <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
-                          Masuk: {new Date(lead.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </div>
+                        {lead.kebutuhan && <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '8px 12px', lineHeight: 1.6 }}>{lead.kebutuhan}</div>}
+                        <div style={{ marginTop: '8px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>Masuk: {new Date(lead.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                        <select
-                          value={lead.status}
-                          onChange={e => handleUpdateLeadStatus(lead.id, e.target.value)}
-                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '7px 12px', borderRadius: '8px', fontSize: '0.78rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
-                        >
+                        <select value={lead.status} onChange={e => handleUpdateLeadStatus(lead.id, e.target.value)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '7px 12px', borderRadius: '8px', fontSize: '0.78rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}>
                           {['baru', 'dihubungi', 'demo', 'negosiasi', 'closing', 'batal'].map(s => (
                             <option key={s} value={s} style={{ background: '#111827' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                           ))}
                         </select>
                         {lead.nomor_wa && (
-                          <a
-                            href={`https://wa.me/${lead.nomor_wa}?text=Halo ${lead.nama_pic}, kami dari Mahirusaha ingin menindaklanjuti permintaan demo Anda.`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: '0.75rem', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '7px 12px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}
-                          >
+                          <a href={`https://wa.me/${lead.nomor_wa}?text=Halo ${lead.nama_pic}, kami dari Mahirusaha ingin menindaklanjuti permintaan demo Anda.`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '7px 12px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
                             💬 Chat WA
                           </a>
                         )}
@@ -557,7 +606,7 @@ export default function AdminDashboard() {
                 {[
                   { label: 'MRR', value: fmt(stats.mrr), sub: 'Monthly Recurring Revenue', color: '#25d366' },
                   { label: 'ARR', value: fmt(stats.mrr * 12), sub: 'Annual Recurring Revenue', color: '#25d366' },
-                  { label: 'Avg Revenue/Klien', value: stats.klienAktif > 0 ? fmt(Math.round(stats.mrr / stats.klienAktif)) : 'Rp 0', sub: 'Per aktif klien', color: '#fff' },
+                  { label: 'Avg Revenue/Klien', value: stats.klienAktif > 0 ? fmt(Math.round(stats.mrr / stats.klienAktif)) : 'Rp 0', sub: 'Per klien aktif', color: '#fff' },
                 ].map(stat => (
                   <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
                     <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</div>
@@ -592,7 +641,7 @@ export default function AdminDashboard() {
               </div>
               <div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '14px', padding: '16px 20px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
-                  💡 <strong style={{ color: '#25d366' }}>BEP:</strong> Dengan biaya server ~Rp 655rb/bln, kamu butuh minimal <strong style={{ color: '#fff' }}>7 klien Starter</strong> atau <strong style={{ color: '#fff' }}>3 klien Pro</strong> untuk break even. MRR saat ini <strong style={{ color: '#25d366' }}>{fmt(stats.mrr)}</strong> dengan margin <strong style={{ color: '#25d366' }}>{stats.mrr > 655000 ? Math.round(((stats.mrr - 655000) / stats.mrr) * 100) : 0}%</strong>.
+                  💡 <strong style={{ color: '#25d366' }}>BEP:</strong> Dengan biaya operasional ~Rp 655rb/bln, butuh minimal <strong style={{ color: '#fff' }}>7 klien Starter</strong> atau <strong style={{ color: '#fff' }}>3 klien Pro</strong> untuk break even. MRR saat ini <strong style={{ color: '#25d366' }}>{fmt(stats.mrr)}</strong>.
                 </p>
               </div>
             </div>
