@@ -87,6 +87,9 @@ export default function Dashboard() {
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null)
   const [replyPesan, setReplyPesan] = useState('')
   const [sendingReply, setSendingReply] = useState(false)
+  const [showTambahToko, setShowTambahToko] = useState(false)
+  const [formToko, setFormToko] = useState({ nama_toko: '', slug: '', nomor_wa_toko: '', kategori: '' })
+  const [savingToko, setSavingToko] = useState(false)
 
   useEffect(() => {
     const session = localStorage.getItem('mahirusaha_client')
@@ -97,6 +100,14 @@ export default function Dashboard() {
     const clientData = JSON.parse(session)
     loadDashboard(clientData.id)
   }, [])
+
+  // Reload conversations saat activeStore berubah
+  useEffect(() => {
+    if (!activeStore) return
+    loadConversations(activeStore.id)
+    loadProduk(activeStore.id)
+    setSelectedConv(null)
+  }, [activeStore?.id])
 
   const loadDashboard = async (clientId: string) => {
     try {
@@ -122,23 +133,8 @@ export default function Dashboard() {
       if (storesData && storesData.length > 0) {
         setStores(storesData)
         setActiveStore(storesData[0])
-
-        const { data: convData } = await supabase
-          .from('conversations')
-          .select('*')
-          .eq('store_id', storesData[0].id)
-          .order('created_at', { ascending: false })
-          .limit(50)
-
-        setConversations(convData || [])
-        setUnreadCount((convData || []).filter((c: Conversation) => !c.dibaca).length)
-
-        const { count } = await supabase
-          .from('products')
-          .select('*', { count: 'exact', head: true })
-          .eq('store_id', storesData[0].id)
-
-        setTotalProduk(count || 0)
+        await loadConversations(storesData[0].id)
+        await loadProduk(storesData[0].id)
       }
 
       const { data: onboardingData } = await supabase
@@ -153,6 +149,25 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadConversations = async (storeId: string) => {
+    const { data: convData } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setConversations(convData || [])
+    setUnreadCount((convData || []).filter((c: Conversation) => !c.dibaca).length)
+  }
+
+  const loadProduk = async (storeId: string) => {
+    const { count } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId)
+    setTotalProduk(count || 0)
   }
 
   const handleLogout = () => {
@@ -198,6 +213,7 @@ export default function Dashboard() {
       if (response.ok) {
         setReplyPesan('')
         alert('✅ Pesan berhasil dikirim!')
+        await loadConversations(activeStore.id)
       } else {
         alert('❌ Gagal kirim pesan. Coba lagi.')
       }
@@ -205,6 +221,39 @@ export default function Dashboard() {
       alert('❌ Terjadi kesalahan.')
     } finally {
       setSendingReply(false)
+    }
+  }
+
+  const handleTambahToko = async () => {
+    if (!formToko.nama_toko || !formToko.slug || !client) return
+    setSavingToko(true)
+    try {
+      const { data, error } = await supabase.from('stores').insert({
+        client_id: client.id,
+        nama_toko: formToko.nama_toko,
+        slug: formToko.slug.toLowerCase().replace(/[^a-z0-9-]/g, ''),
+        nomor_wa_toko: formToko.nomor_wa_toko,
+        kategori: formToko.kategori,
+        aktif: false,
+        is_trial: false,
+        pesan_terpakai: 0,
+        batas_pesan_bulan: 1000,
+        trial_pesan_limit: 100,
+        onboarding_selesai: false,
+      }).select().single()
+
+      if (error) throw error
+
+      setStores(prev => [...prev, data])
+      setActiveStore(data)
+      setShowTambahToko(false)
+      setFormToko({ nama_toko: '', slug: '', nomor_wa_toko: '', kategori: '' })
+      alert('✅ Toko berhasil ditambahkan! Hubungi tim kami di +62 813-2531-210 untuk aktivasi bot WhatsApp.')
+    } catch (err) {
+      alert('❌ Gagal tambah toko. Coba lagi.')
+      console.error(err)
+    } finally {
+      setSavingToko(false)
     }
   }
 
@@ -222,10 +271,12 @@ export default function Dashboard() {
     return map[paket] || paket
   }
 
+  const batasToko: Record<string, number> = { trial: 1, starter: 1, pro: 3, bisnis: 10, enterprise: 999 }
+  const maxToko = batasToko[client?.paket || 'trial'] || 1
+
   const kuotaPersen = activeStore
     ? Math.min(100, Math.round((activeStore.pesan_terpakai / (activeStore.is_trial ? activeStore.trial_pesan_limit : activeStore.batas_pesan_bulan)) * 100))
     : 0
-
   const kuotaWarning = kuotaPersen >= 80
 
   const menuItems = [
@@ -287,16 +338,46 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* Toko Selector */}
         {sidebarOpen && stores.length > 0 && (
           <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>Toko Aktif</div>
-            <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 12px' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeStore?.nama_toko}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeStore?.aktif ? '#25d366' : '#EF4444', animation: activeStore?.aktif ? 'pulse 2s infinite' : 'none' }}/>
-                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)' }}>{activeStore?.aktif ? 'Bot aktif' : 'Bot mati'}</span>
+
+            {stores.length > 1 ? (
+              <select
+                value={activeStore?.id || ''}
+                onChange={e => {
+                  const toko = stores.find(s => s.id === e.target.value)
+                  if (toko) setActiveStore(toko)
+                }}
+                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '8px 10px', borderRadius: '8px', fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer', marginBottom: '8px' }}
+              >
+                {stores.map(s => (
+                  <option key={s.id} value={s.id} style={{ background: '#111827' }}>{s.nama_toko}</option>
+                ))}
+              </select>
+            ) : (
+              <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 12px', marginBottom: '8px' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeStore?.nama_toko}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: activeStore?.aktif ? '#25d366' : '#EF4444', animation: activeStore?.aktif ? 'pulse 2s infinite' : 'none' }}/>
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)' }}>{activeStore?.aktif ? 'Bot aktif' : 'Bot mati'}</span>
+                </div>
               </div>
-            </div>
+            )}
+
+            {stores.length < maxToko ? (
+              <button
+                onClick={() => setShowTambahToko(true)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px', borderRadius: '8px', border: '1px dashed rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 600 }}
+              >
+                ➕ Tambah Toko
+              </button>
+            ) : (
+              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '4px 0' }}>
+                Batas {getPaketLabel(client?.paket || '')}: {maxToko} toko
+              </div>
+            )}
           </div>
         )}
 
@@ -528,11 +609,9 @@ export default function Dashboard() {
           {activeMenu === 'percakapan' && (
             <div className="fadeUp">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '16px' }}>
-
-                {/* Kolom kiri - Daftar Percakapan */}
                 <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <h3 style={{ fontWeight: 700, fontSize: '0.9rem' }}>Semua Percakapan</h3>
+                    <h3 style={{ fontWeight: 700, fontSize: '0.9rem' }}>Semua Percakapan — {activeStore?.nama_toko}</h3>
                     <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{conversations.length} percakapan · {unreadCount} belum dibaca</p>
                   </div>
                   {conversations.length === 0 ? (
@@ -543,12 +622,7 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     conversations.map((conv, i) => (
-                      <div
-                        key={i}
-                        className="conv-item"
-                        onClick={() => setSelectedConv(conv)}
-                        style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '12px', alignItems: 'flex-start', background: selectedConv?.id === conv.id ? 'rgba(37,211,102,0.06)' : !conv.dibaca ? 'rgba(37,211,102,0.02)' : 'transparent', cursor: 'pointer', borderLeft: selectedConv?.id === conv.id ? '3px solid #25d366' : '3px solid transparent', transition: 'all 0.15s' }}
-                      >
+                      <div key={i} className="conv-item" onClick={() => setSelectedConv(conv)} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '12px', alignItems: 'flex-start', background: selectedConv?.id === conv.id ? 'rgba(37,211,102,0.06)' : !conv.dibaca ? 'rgba(37,211,102,0.02)' : 'transparent', cursor: 'pointer', borderLeft: selectedConv?.id === conv.id ? '3px solid #25d366' : '3px solid transparent', transition: 'all 0.15s' }}>
                         <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>👤</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
@@ -564,11 +638,9 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Kolom kanan - Detail & Aksi */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {selectedConv ? (
                     <>
-                      {/* Detail percakapan */}
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '16px 20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', paddingBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                           <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>👤</div>
@@ -587,46 +659,19 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Human Takeover */}
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '16px 20px' }}>
                         <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '8px' }}>👤 Human Takeover</h3>
-                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', lineHeight: 1.6 }}>
-                          Ambil alih percakapan — bot berhenti menjawab dan kamu bisa balas manual dari sini.
-                        </p>
+                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', lineHeight: 1.6 }}>Ambil alih percakapan — bot berhenti menjawab dan kamu bisa balas manual dari sini.</p>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => handleAmbilAlih(selectedConv.nomor_pelanggan)}
-                            className="btn"
-                            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#EF9F27,#d97706)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}
-                          >
-                            👤 Ambil Alih
-                          </button>
-                          <button
-                            onClick={() => handleAktifkanBot(selectedConv.nomor_pelanggan)}
-                            className="btn"
-                            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}
-                          >
-                            🤖 Aktifkan Bot
-                          </button>
+                          <button onClick={() => handleAmbilAlih(selectedConv.nomor_pelanggan)} className="btn" style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#EF9F27,#d97706)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}>👤 Ambil Alih</button>
+                          <button onClick={() => handleAktifkanBot(selectedConv.nomor_pelanggan)} className="btn" style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}>🤖 Aktifkan Bot</button>
                         </div>
                       </div>
 
-                      {/* Form Reply */}
                       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '16px 20px' }}>
                         <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '10px' }}>✏️ Balas Manual</h3>
-                        <textarea
-                          value={replyPesan}
-                          onChange={e => setReplyPesan(e.target.value)}
-                          placeholder="Ketik balasan untuk pelanggan..."
-                          rows={4}
-                          style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px', borderRadius: '10px', fontSize: '0.82rem', fontFamily: 'inherit', resize: 'none', outline: 'none', marginBottom: '10px' }}
-                        />
-                        <button
-                          onClick={() => handleReplyManual(selectedConv.nomor_pelanggan)}
-                          disabled={!replyPesan.trim() || sendingReply}
-                          className="btn"
-                          style={{ width: '100%', padding: '11px', borderRadius: '10px', border: 'none', background: !replyPesan.trim() || sendingReply ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: !replyPesan.trim() || sendingReply ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: !replyPesan.trim() || sendingReply ? 0.5 : 1 }}
-                        >
+                        <textarea value={replyPesan} onChange={e => setReplyPesan(e.target.value)} placeholder="Ketik balasan untuk pelanggan..." rows={4} style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px', borderRadius: '10px', fontSize: '0.82rem', fontFamily: 'inherit', resize: 'none', outline: 'none', marginBottom: '10px' }}/>
+                        <button onClick={() => handleReplyManual(selectedConv.nomor_pelanggan)} disabled={!replyPesan.trim() || sendingReply} className="btn" style={{ width: '100%', padding: '11px', borderRadius: '10px', border: 'none', background: !replyPesan.trim() || sendingReply ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: !replyPesan.trim() || sendingReply ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: !replyPesan.trim() || sendingReply ? 0.5 : 1 }}>
                           {sendingReply ? '⏳ Mengirim...' : '📤 Kirim Balasan'}
                         </button>
                       </div>
@@ -674,14 +719,7 @@ export default function Dashboard() {
           {/* ==================== LANGGANAN ==================== */}
           {activeMenu === 'langganan' && (
             <div className="fadeUp">
-              <LanggananPage
-                clientId={client?.id || ''}
-                clientStatus={client?.status || 'trial'}
-                clientPaket={client?.paket || 'trial'}
-                clientTanggalBerakhir={client?.tanggal_berakhir || ''}
-                pesanTerpakai={activeStore?.pesan_terpakai || 0}
-                trialLimit={activeStore?.trial_pesan_limit || 100}
-              />
+              <LanggananPage clientId={client?.id || ''} clientStatus={client?.status || 'trial'} clientPaket={client?.paket || 'trial'} clientTanggalBerakhir={client?.tanggal_berakhir || ''} pesanTerpakai={activeStore?.pesan_terpakai || 0} trialLimit={activeStore?.trial_pesan_limit || 100} />
             </div>
           )}
 
@@ -692,16 +730,12 @@ export default function Dashboard() {
                 <div style={{ background: 'linear-gradient(135deg,rgba(244,114,182,0.1),rgba(99,102,241,0.1))', border: '1px solid rgba(244,114,182,0.2)', borderRadius: '20px', padding: '32px', textAlign: 'center', marginBottom: '20px' }}>
                   <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎁</div>
                   <h2 style={{ fontWeight: 800, fontSize: '1.3rem', marginBottom: '8px' }}>Undang teman, dapat diskon!</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', lineHeight: 1.7, marginBottom: '24px' }}>
-                    Bagikan kode referralmu. Setiap teman yang daftar menggunakan kodemu, kamu dapat diskon 10% untuk bulan berikutnya.
-                  </p>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', lineHeight: 1.7, marginBottom: '24px' }}>Bagikan kode referralmu. Setiap teman yang daftar menggunakan kodemu, kamu dapat diskon 10% untuk bulan berikutnya.</p>
                   <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
                     <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>Kode Referralmu</div>
                     <div style={{ fontFamily: 'monospace', fontSize: '1.6rem', fontWeight: 800, letterSpacing: '4px', color: '#F472B6' }}>{client?.referral_code || 'MHR000000'}</div>
                   </div>
-                  <button className="btn" onClick={() => { navigator.clipboard.writeText(client?.referral_code || ''); alert('Kode disalin!') }} style={{ background: 'linear-gradient(135deg,#F472B6,#6366f1)', color: '#fff', padding: '12px 28px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.875rem', fontFamily: 'inherit', cursor: 'pointer' }}>
-                    📋 Salin Kode Referral
-                  </button>
+                  <button className="btn" onClick={() => { navigator.clipboard.writeText(client?.referral_code || ''); alert('Kode disalin!') }} style={{ background: 'linear-gradient(135deg,#F472B6,#6366f1)', color: '#fff', padding: '12px 28px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.875rem', fontFamily: 'inherit', cursor: 'pointer' }}>📋 Salin Kode Referral</button>
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '20px' }}>
                   <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>📊 Statistik Referral</h3>
@@ -727,6 +761,55 @@ export default function Dashboard() {
 
         </div>
       </div>
+
+      {/* MODAL TAMBAH TOKO */}
+      {showTambahToko && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#0f1829', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '460px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ fontWeight: 800, fontSize: '1rem' }}>➕ Tambah Toko Baru</h2>
+              <button onClick={() => setShowTambahToko(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Nama Toko *</label>
+                <input style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="Toko Kedua Saya" value={formToko.nama_toko} onChange={e => setFormToko(p => ({ ...p, nama_toko: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Link Toko Online *</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>mahirusaha.com/</span>
+                  <input style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="nama-toko-kedua" value={formToko.slug} onChange={e => setFormToko(p => ({ ...p, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Nomor WA Bot</label>
+                <input style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="628xxxxxxxxxx" value={formToko.nomor_wa_toko} onChange={e => setFormToko(p => ({ ...p, nomor_wa_toko: e.target.value }))} />
+                <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>Nomor WA khusus bot — jangan pakai nomor yang sudah ada WA-nya!</span>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px' }}>Kategori</label>
+                <select style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} value={formToko.kategori} onChange={e => setFormToko(p => ({ ...p, kategori: e.target.value }))}>
+                  <option value="" style={{ background: '#111827' }}>Pilih kategori...</option>
+                  {['Kuliner & Makanan','Fashion & Pakaian','Kecantikan & Skincare','Elektronik','Kesehatan','Pendidikan','Properti','Otomotif','Jasa & Layanan','Retail & Toko','Lainnya'].map(k => (
+                    <option key={k} value={k} style={{ background: '#111827' }}>{k}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ background: 'rgba(239,159,39,0.08)', border: '1px solid rgba(239,159,39,0.2)', borderRadius: '10px', padding: '12px 14px' }}>
+                <p style={{ fontSize: '0.75rem', color: '#EF9F27', lineHeight: 1.6 }}>⚠️ Setelah tambah toko, hubungi tim kami di <strong>+62 813-2531-210</strong> untuk aktivasi bot WhatsApp toko ini.</p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button onClick={() => setShowTambahToko(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Batal</button>
+                <button onClick={handleTambahToko} disabled={!formToko.nama_toko || !formToko.slug || savingToko} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: !formToko.nama_toko || !formToko.slug ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', cursor: !formToko.nama_toko || !formToko.slug ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.875rem', opacity: !formToko.nama_toko || !formToko.slug ? 0.5 : 1 }}>
+                  {savingToko ? '⏳ Menyimpan...' : '✅ Tambah Toko'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
