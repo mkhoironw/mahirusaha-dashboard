@@ -1,15 +1,18 @@
 'use client'
 import { useState, useEffect } from 'react'
+
 export default function Home() {
   const [scrolled, setScrolled] = useState(false)
   const [billing, setBilling] = useState<'bulanan' | 'tahunan'>('bulanan')
   const [formEnterprise, setFormEnterprise] = useState({ nama: '', perusahaan: '', email: '', wa: '', kebutuhan: '' })
   const [formStatus, setFormStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
   const handleEnterpriseSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormStatus('loading')
@@ -25,12 +28,15 @@ export default function Home() {
       setFormStatus('error')
     }
   }
+
   const prices = {
     starter: { bulanan: 99000, tahunan: 74000 },
     pro: { bulanan: 299000, tahunan: 224000 },
     bisnis: { bulanan: 699000, tahunan: 524000 },
   }
+
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
+
   return (
     <main style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", background: '#070d1a', color: '#fff', minHeight: '100vh', overflowX: 'hidden' }}>
       <style>{`
@@ -40,6 +46,7 @@ export default function Home() {
         ::-webkit-scrollbar-thumb { background: #25d366; border-radius: 2px; }
         @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
         @keyframes pulse-g { 0%,100%{box-shadow:0 0 0 0 rgba(37,211,102,.4)} 50%{box-shadow:0 0 0 14px rgba(37,211,102,0)} }
+        @keyframes pulse-p { 0%,100%{box-shadow:0 0 0 0 rgba(129,140,248,.4)} 50%{box-shadow:0 0 0 14px rgba(129,140,248,0)} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
         @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
         @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
@@ -49,6 +56,7 @@ export default function Home() {
         .fadeUp-3 { animation: fadeUp .7s .3s ease forwards; opacity:0; }
         .float { animation: float 4s ease-in-out infinite; }
         .pulse-g { animation: pulse-g 2.5s ease-in-out infinite; }
+        .pulse-p { animation: pulse-p 2.5s ease-in-out infinite; }
         .shimmer-text {
           background: linear-gradient(90deg,#25d366 0%,#fff 40%,#25d366 60%,#fff 100%);
           background-size: 200% auto;
@@ -71,6 +79,7 @@ export default function Home() {
           .steps-grid{grid-template-columns:1fr 1fr!important}
           .ent-grid{grid-template-columns:1fr!important}
           .hide-mob{display:none!important}
+          .partner-grid{grid-template-columns:1fr!important}
         }
       `}</style>
 
@@ -82,9 +91,9 @@ export default function Home() {
         </div>
         <div className="hide-mob" style={{ display:'flex', alignItems:'center', gap:'28px' }}>
           {['Fitur','Harga','Enterprise','Cara Kerja'].map(t=>(
-			<a key={t} href={`#${t.toLowerCase()}`} className="nav-a">{t}</a>
-		))}
-        <a href="/panduan" className="nav-a" style={{ color: '#25d366', fontWeight: 600 }}>Panduan</a>
+            <a key={t} href={`#${t.toLowerCase()}`} className="nav-a">{t}</a>
+          ))}
+          <a href="/panduan" className="nav-a" style={{ color: '#25d366', fontWeight: 600 }}>Panduan</a>
         </div>
         <div style={{ display:'flex', gap:'10px' }}>
           <a href="/masuk" style={{ color:'rgba(255,255,255,.7)', padding:'10px 18px', borderRadius:'10px', textDecoration:'none', fontWeight:600, fontSize:'.85rem', border:'1px solid rgba(255,255,255,.1)' }}>Masuk</a>
@@ -118,7 +127,6 @@ export default function Home() {
                 Solusi Enterprise →
               </a>
             </div>
-            {/* Trust badges */}
             <div style={{ marginTop:'38px', display:'flex', alignItems:'center', gap:'24px', flexWrap:'wrap' }}>
               {[['10+','UMKM Aktif'],['99%','Uptime SLA'],['24/7','AI Support'],['<2s','Response Time']].map(([n,l])=>(
                 <div key={l}>
@@ -128,7 +136,6 @@ export default function Home() {
               ))}
             </div>
           </div>
-          {/* Chat mockup */}
           <div style={{ flex:1, display:'flex', justifyContent:'center' }}>
             <div className="float" style={{ position:'relative', width:'320px' }}>
               <div style={{ background:'#111827', border:'2px solid rgba(255,255,255,.08)', borderRadius:'28px', padding:'14px', boxShadow:'0 40px 80px rgba(0,0,0,.5)' }}>
@@ -317,7 +324,7 @@ export default function Home() {
           <div className="steps-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'20px' }}>
             {[
               { step:'01', icon:'📝', title:'Daftar Akun', desc:'Buat akun gratis, isi info toko dan produk. Tidak perlu kartu kredit.' },
-			  { step:'02', icon:'📱', title:'Siapkan Nomor WA', desc:'Siapkan SIM card baru khusus untuk bot tokomu (Telkomsel ~Rp 35rb). Jangan install WhatsApp!' },
+              { step:'02', icon:'📱', title:'Siapkan Nomor WA', desc:'Siapkan SIM card baru khusus untuk bot tokomu (Telkomsel ~Rp 35rb). Jangan install WhatsApp!' },
               { step:'03', icon:'💬', title:'Kirim Data ke Tim Kami', desc:'Kirim nomor WA bot ke +62 813-2531-202. Tim kami proses aktivasi dalam 24 jam.' },
               { step:'04', icon:'🚀', title:'Bot Aktif — Coba Gratis!', desc:'Bot WA + toko online aktif. Nikmati 100 pesan gratis dulu, baru bayar setelah trial habis!' },
             ].map((s,i)=>(
@@ -330,7 +337,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-          {/* Info tambahan */}
           <div style={{ marginTop:'40px', background:'rgba(37,211,102,.06)', border:'1px solid rgba(37,211,102,.15)', borderRadius:'16px', padding:'20px 24px', display:'flex', alignItems:'center', gap:'16px', flexWrap:'wrap' }}>
             <span style={{ fontSize:'1.5rem' }}>💡</span>
             <div style={{ flex:1 }}>
@@ -344,14 +350,105 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ===== SECTION PARTNER ===== */}
+      <section id="partner" style={{ padding:'80px 5%' }}>
+        <div style={{ maxWidth:'1100px', margin:'0 auto' }}>
+          <div style={{ background:'linear-gradient(135deg,rgba(129,140,248,.1),rgba(99,102,241,.08))', border:'1px solid rgba(129,140,248,.2)', borderRadius:'28px', padding:'56px 48px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'60px', alignItems:'center' }} className="partner-grid">
+
+              {/* Kiri — Info */}
+              <div>
+                <div style={{ display:'inline-block', background:'rgba(129,140,248,.15)', border:'1px solid rgba(129,140,248,.3)', borderRadius:'100px', padding:'5px 14px', marginBottom:'20px', color:'#818cf8', fontSize:'.78rem', fontWeight:700 }}>
+                  🤝 PROGRAM PARTNER
+                </div>
+                <h2 style={{ fontSize:'2rem', fontWeight:800, letterSpacing:'-.5px', marginBottom:'14px', lineHeight:1.25 }}>
+                  Punya jaringan UMKM?<br/>
+                  <span style={{ color:'#818cf8' }}>Hasilkan passive income</span><br/>
+                  dari komisi!
+                </h2>
+                <p style={{ color:'rgba(255,255,255,.55)', fontSize:'.875rem', lineHeight:1.75, marginBottom:'28px' }}>
+                  Kenalkan Mahirusaha ke jaringan UMKM kamu dan dapatkan komisi <strong style={{ color:'#818cf8' }}>15% setiap bulan</strong> selama klien masih aktif — tanpa modal, tanpa keahlian teknis.
+                </p>
+
+                {/* Keuntungan */}
+                <div style={{ display:'flex', flexDirection:'column', gap:'12px', marginBottom:'28px' }}>
+                  {[
+                    { icon:'💰', text:'Komisi 15% recurring — setiap bulan selama klien aktif' },
+                    { icon:'📊', text:'Dashboard real-time pantau komisi & klien referral' },
+                    { icon:'🚀', text:'Tanpa modal, tanpa keahlian teknis apapun' },
+                    { icon:'∞', text:'Tidak ada batas jumlah klien yang bisa direferensikan' },
+                    { icon:'🤝', text:'Tim Mahirusaha handle semua proses teknis' },
+                  ].map((f,i)=>(
+                    <div key={i} style={{ display:'flex', gap:'12px', alignItems:'center' }}>
+                      <div style={{ width:'32px', height:'32px', borderRadius:'8px', background:'rgba(129,140,248,.15)', border:'1px solid rgba(129,140,248,.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px', flexShrink:0 }}>{f.icon}</div>
+                      <span style={{ fontSize:'.82rem', color:'rgba(255,255,255,.7)' }}>{f.text}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
+                  <a href="/partner/daftar" className="pulse-p" style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'linear-gradient(135deg,#818cf8,#6366f1)', color:'#fff', padding:'13px 24px', borderRadius:'12px', textDecoration:'none', fontWeight:700, fontSize:'.875rem' }}>
+                    🤝 Daftar Jadi Partner
+                  </a>
+                  <a href="/partner" style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'transparent', border:'1px solid rgba(129,140,248,.3)', color:'#818cf8', padding:'13px 24px', borderRadius:'12px', textDecoration:'none', fontWeight:600, fontSize:'.875rem' }}>
+                    Pelajari lebih →
+                  </a>
+                </div>
+              </div>
+
+              {/* Kanan — Simulasi Komisi */}
+              <div>
+                <div style={{ background:'#111827', border:'1px solid rgba(129,140,248,.2)', borderRadius:'20px', padding:'24px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'20px', paddingBottom:'16px', borderBottom:'1px solid rgba(255,255,255,.06)' }}>
+                    <div style={{ width:'36px', height:'36px', background:'linear-gradient(135deg,#818cf8,#6366f1)', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'16px' }}>🤝</div>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:'.875rem' }}>Simulasi Penghasilan Partner</div>
+                      <div style={{ fontSize:'.7rem', color:'rgba(255,255,255,.4)' }}>Komisi 15% per transaksi</div>
+                    </div>
+                  </div>
+
+                  {/* Tabel simulasi */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom:'20px' }}>
+                    {[
+                      { klien:5, mix:'Starter', total: 5*99000*0.15, label:'5 klien Starter' },
+                      { klien:10, mix:'Pro', total: 10*299000*0.15, label:'10 klien Pro' },
+                      { klien:5, mix:'Bisnis', total: 5*699000*0.15, label:'5 klien Bisnis' },
+                    ].map((s,i)=>(
+                      <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'rgba(255,255,255,.04)', borderRadius:'10px' }}>
+                        <div>
+                          <div style={{ fontSize:'.78rem', fontWeight:600 }}>{s.label}</div>
+                          <div style={{ fontSize:'.68rem', color:'rgba(255,255,255,.4)' }}>Paket {s.mix}</div>
+                        </div>
+                        <div style={{ fontWeight:800, color:'#818cf8', fontSize:'.875rem' }}>{fmt(s.total)}/bln</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Total */}
+                  <div style={{ background:'rgba(129,140,248,.1)', border:'1px solid rgba(129,140,248,.2)', borderRadius:'12px', padding:'16px', textAlign:'center', marginBottom:'16px' }}>
+                    <div style={{ fontSize:'.75rem', color:'rgba(255,255,255,.5)', marginBottom:'4px' }}>Total passive income/bulan</div>
+                    <div style={{ fontSize:'1.8rem', fontWeight:800, color:'#818cf8' }}>{fmt((5*99000 + 10*299000 + 5*699000) * 0.15)}</div>
+                    <div style={{ fontSize:'.7rem', color:'rgba(255,255,255,.4)', marginTop:'2px' }}>dari 20 klien referral</div>
+                  </div>
+
+                  <p style={{ fontSize:'.72rem', color:'rgba(255,255,255,.3)', textAlign:'center', lineHeight:1.6 }}>
+                    Makin banyak klien yang kamu bawa → makin besar komisimu 📈
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ENTERPRISE CONTACT */}
-      <section id="enterprise" style={{ padding:'80px 5%' }}>
+      <section id="enterprise" style={{ padding:'80px 5%', background:'rgba(255,255,255,.015)' }}>
         <div style={{ maxWidth:'900px', margin:'0 auto' }}>
           <div style={{ background:'rgba(99,102,241,.06)', border:'1px solid rgba(99,102,241,.2)', borderRadius:'28px', padding:'56px 48px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'48px', alignItems:'center' }}>
             <div>
               <div style={{ display:'inline-block', background:'rgba(99,102,241,.15)', border:'1px solid rgba(99,102,241,.3)', borderRadius:'100px', padding:'5px 14px', marginBottom:'20px', color:'#818cf8', fontSize:'.78rem', fontWeight:700 }}>ENTERPRISE</div>
               <h2 style={{ fontSize:'1.9rem', fontWeight:800, letterSpacing:'-.5px', marginBottom:'16px', lineHeight:1.25 }}>Solusi khusus untuk<br/>perusahaan besar</h2>
-              <p style={{ color:'rgba(255,255,255,.5)', fontSize:'.875rem', lineHeight:1.75, marginBottom:'24px' }}>Tim kami siap membantu merancang solusi WhatsApp Business yang sesuai dengan kebutuhan spesifik perusahaanmu — mulai dari integrasi sistem, white-label, hingga SLA enterprise.</p>
+              <p style={{ color:'rgba(255,255,255,.5)', fontSize:'.875rem', lineHeight:1.75, marginBottom:'24px' }}>Tim kami siap membantu merancang solusi WhatsApp Business yang sesuai dengan kebutuhan spesifik perusahaanmu.</p>
               <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
                 {[['🏢','Sudah dipercaya perusahaan di berbagai industri'],['⚡','Onboarding & implementasi terbimbing'],['🔒','Data aman, infrastruktur enterprise-grade'],['📞','Dedicated account manager']].map(([icon,text])=>(
                   <div key={text} style={{ display:'flex', gap:'12px', alignItems:'center', fontSize:'.82rem', color:'rgba(255,255,255,.65)' }}>
@@ -415,7 +512,8 @@ export default function Home() {
         <p style={{ color:'rgba(255,255,255,.25)', fontSize:'.75rem' }}>© 2026 Mahirusaha. All rights reserved.</p>
         <div style={{ display:'flex', gap:'20px' }}>
           <a href="/panduan" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Panduan</a>
-		  <a href="/privasi" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Privasi</a>
+          <a href="/partner" style={{ color:'#818cf8', fontSize:'.78rem', textDecoration:'none', fontWeight:600 }}>Program Partner</a>
+          <a href="/privasi" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Privasi</a>
           <a href="/syarat" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Syarat Layanan</a>
           <a href="#enterprise" style={{ color:'rgba(255,255,255,.35)', fontSize:'.78rem', textDecoration:'none' }}>Hubungi Kami</a>
         </div>
