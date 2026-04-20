@@ -200,7 +200,7 @@ export default function AdminDashboard() {
     finally { setSaving(false) }
   }
 
-  const handleApprovePartner = async (partnerId: string, nama: string, nomorWa: string) => {
+  const handleApprovePartner = async (partnerId: string, nama: string, nomorWa: string, email: string) => {
     if (!window.confirm(`Approve partner ${nama}?`)) return
     setApprovingPartner(partnerId)
     try {
@@ -511,13 +511,14 @@ export default function AdminDashboard() {
                           </div>
                           {app.status === 'pending' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              <button className="btn-a" onClick={() => handleApprovePartner(app.id, app.nama_lengkap, app.nomor_wa)} disabled={approvingPartner === app.id} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: approvingPartner === app.id ? 0.5 : 1 }}>
+                              <button className="btn-a" onClick={() => handleApprovePartner(app.id, app.nama_lengkap, app.nomor_wa, app.email)} disabled={approvingPartner === app.id} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: approvingPartner === app.id ? 0.5 : 1 }}>
                                 {approvingPartner === app.id ? '⏳...' : '✅ Approve'}
                               </button>
                               <button className="btn-a" onClick={() => handleTolakPartner(app.id, app.nama_lengkap)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#EF4444', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
                                 ❌ Tolak
                               </button>
-                              <a href={`https://wa.me/${app.nomor_wa}?text=Halo ${app.nama_lengkap}, kami dari Mahirusaha ingin menindaklanjuti pendaftaran partner kamu.`} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none', textAlign: 'center' }}>
+                              
+							  <a href={`https://wa.me/${app.nomor_wa}?text=Halo ${app.nama_lengkap}, kami dari Mahirusaha ingin menindaklanjuti pendaftaran partner kamu.`} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none', textAlign: 'center' }}>
                                 💬 Chat WA
                               </a>
                             </div>
