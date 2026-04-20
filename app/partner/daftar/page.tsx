@@ -7,6 +7,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// Helper format nomor WA ke format internasional
+const formatNomorWA = (val: string) => {
+  let nomor = val.replace(/\D/g, '')
+  if (nomor.startsWith('0')) nomor = '62' + nomor.slice(1)
+  else if (nomor.startsWith('8')) nomor = '62' + nomor
+  return nomor
+}
+
 export default function PartnerDaftar() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -26,41 +34,32 @@ export default function PartnerDaftar() {
 
   const update = (key: string, value: string | boolean) => setForm(p => ({ ...p, [key]: value }))
 
+  const handleNomorWA = (val: string) => update('nomor_wa', formatNomorWA(val))
+
   const generateReferralCode = (nama: string) => {
-    const prefix = 'MHR'
     const namaCode = nama.replace(/\s+/g, '').toUpperCase().substring(0, 4)
     const random = Math.floor(1000 + Math.random() * 9000)
-    return `${prefix}${namaCode}${random}`
+    return `MHR${namaCode}${random}`
   }
 
   const handleSubmit = async () => {
     if (!form.setuju) { alert('Harap setujui syarat & ketentuan'); return }
     if (form.password !== form.konfirmasi_password) { alert('Password tidak cocok'); return }
     if (form.password.length < 8) { alert('Password minimal 8 karakter'); return }
+    if (!form.nomor_wa.startsWith('62')) { alert('Nomor WA tidak valid'); return }
 
     setLoading(true)
     try {
-      // Cek apakah email sudah terdaftar
-      const { data: existing } = await supabase
-        .from('partners')
-        .select('id')
-        .eq('email', form.email)
-        .single()
-
-      if (existing) {
-        alert('Email sudah terdaftar sebagai partner')
-        setLoading(false)
-        return
-      }
+      const { data: existing } = await supabase.from('partners').select('id').eq('email', form.email).single()
+      if (existing) { alert('Email sudah terdaftar sebagai partner'); setLoading(false); return }
 
       const referralCode = generateReferralCode(form.nama_lengkap)
 
-      // Simpan ke tabel partners
       const { error } = await supabase.from('partners').insert({
         nama_lengkap: form.nama_lengkap,
         email: form.email,
         password: form.password,
-        nomor_wa: form.nomor_wa.replace(/\D/g, ''),
+        nomor_wa: form.nomor_wa,
         domisili: form.domisili,
         profesi: form.profesi,
         jaringan_umkm: form.jaringan_umkm,
@@ -73,15 +72,10 @@ export default function PartnerDaftar() {
 
       if (error) throw error
 
-      // Notif ke admin
       await fetch('/api/partner/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nama: form.nama_lengkap,
-          email: form.email,
-          nomor_wa: form.nomor_wa
-        })
+        body: JSON.stringify({ nama: form.nama_lengkap, email: form.email, nomor_wa: form.nomor_wa })
       }).catch(() => {})
 
       setStep(3)
@@ -177,7 +171,20 @@ export default function PartnerDaftar() {
 
             <div>
               <label style={labelStyle}>Nomor WhatsApp *</label>
-              <input style={inputStyle} placeholder="08123456789" value={form.nomor_wa} onChange={e => update('nomor_wa', e.target.value)} />
+              <input
+                style={inputStyle}
+                placeholder="08xxxxxxxxxx atau 628xxxxxxxxxx"
+                value={form.nomor_wa}
+                onChange={e => handleNomorWA(e.target.value)}
+              />
+              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
+                Format otomatis: 08xxx → 628xxx
+              </span>
+              {form.nomor_wa && (
+                <span style={{ fontSize: '0.7rem', color: '#818cf8', marginTop: '2px', display: 'block' }}>
+                  ✓ Format tersimpan: {form.nomor_wa}
+                </span>
+              )}
             </div>
 
             <div>
@@ -200,6 +207,7 @@ export default function PartnerDaftar() {
                 if (!form.nama_lengkap || !form.email || !form.password || !form.nomor_wa) { alert('Harap isi semua field wajib'); return }
                 if (form.password !== form.konfirmasi_password) { alert('Password tidak cocok'); return }
                 if (form.password.length < 8) { alert('Password minimal 8 karakter'); return }
+                if (!form.nomor_wa.startsWith('62')) { alert('Nomor WA tidak valid. Contoh: 08xxx atau 628xxx'); return }
                 setStep(2)
               }}
               style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit', marginTop: '8px' }}
@@ -239,7 +247,7 @@ export default function PartnerDaftar() {
               <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, marginBottom: '12px' }}>Dengan mendaftar, kamu setuju bahwa:</p>
               <ul style={{ paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[
-                  'Komisi 15% dihitung dari harga paket klien setiap bulan',
+                  'Komisi dihitung dari harga paket klien setiap bulan',
                   'Komisi dibayarkan setiap awal bulan untuk transaksi bulan sebelumnya',
                   'Mahirusaha berhak mengubah komisi dengan pemberitahuan 30 hari',
                   'Partner dilarang memberikan informasi menyesatkan ke calon klien',
@@ -255,20 +263,25 @@ export default function PartnerDaftar() {
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
               <button onClick={() => setStep(1)} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>← Kembali</button>
-              <button onClick={handleSubmit} disabled={!form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju || loading} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', cursor: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }}>
+              <button
+                onClick={handleSubmit}
+                disabled={!form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju || loading}
+                style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', cursor: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }}
+              >
                 {loading ? '⏳ Mengirim...' : '🤝 Kirim Pendaftaran'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 3 - Success */}
+        {/* Step 3 - Sukses */}
         {step === 3 && (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🎉</div>
             <h2 style={{ fontWeight: 800, fontSize: '1.5rem', marginBottom: '12px' }}>Pendaftaran Berhasil!</h2>
             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', lineHeight: 1.7, marginBottom: '24px' }}>
-              Terima kasih <strong style={{ color: '#fff' }}>{form.nama_lengkap}</strong>! Tim kami akan review dan menghubungi kamu via WhatsApp dalam 1x24 jam.
+              Terima kasih <strong style={{ color: '#fff' }}>{form.nama_lengkap}</strong>! Tim kami akan review dan menghubungi kamu via WhatsApp{' '}
+              <strong style={{ color: '#818cf8' }}>{form.nomor_wa}</strong> dalam 1x24 jam.
             </p>
             <div style={{ background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.2)', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}>
               <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -7,20 +7,26 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+const formatNomorWA = (val: string) => {
+  let nomor = val.replace(/\D/g, '')
+  if (nomor.startsWith('0')) nomor = '62' + nomor.slice(1)
+  else if (nomor.startsWith('8')) nomor = '62' + nomor
+  return nomor
+}
+
 export default function Daftar() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [refFromUrl, setRefFromUrl] = useState(false)
   const [form, setForm] = useState({
-    // Step 1 - Akun
     nama_pemilik: '',
     email: '',
     password: '',
     konfirmasi_password: '',
     nomor_wa_pemilik: '',
-    // Step 2 - Toko
     nama_toko: '',
-	slug: '',
+    slug: '',
     nomor_wa_toko: '',
     kategori: '',
     deskripsi: '',
@@ -28,26 +34,32 @@ export default function Daftar() {
     hari_buka: '',
     lokasi: '',
     kode_referral: '',
-	nomor_admin: '',
+    nomor_admin: '',
     metode_pembayaran: '',
     metode_pengiriman: '',
     pesan_sambutan: '',
   })
 
-  const update = (field: string, value: string) =>
-    setForm(p => ({ ...p, [field]: value }))
+  const update = (field: string, value: string) => setForm(p => ({ ...p, [field]: value }))
+
+  // Auto-fill kode referral dari URL ?ref=XXXXX
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref) {
+      update('kode_referral', ref.toUpperCase())
+      setRefFromUrl(true)
+    }
+  }, [])
+
+  const handleNomorWA = (field: string, val: string) => update(field, formatNomorWA(val))
 
   const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (form.password !== form.konfirmasi_password) {
-      setError('Password tidak cocok!')
-      return
-    }
-    if (form.password.length < 8) {
-      setError('Password minimal 8 karakter')
-      return
-    }
+    if (form.password !== form.konfirmasi_password) { setError('Password tidak cocok!'); return }
+    if (form.password.length < 8) { setError('Password minimal 8 karakter'); return }
+    if (!form.nomor_wa_pemilik.startsWith('62')) { setError('Nomor WA tidak valid. Contoh: 08xxx atau 628xxx'); return }
     setStep(2)
   }
 
@@ -55,18 +67,15 @@ export default function Daftar() {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
-      // Generate referral code unik
       const referralCode = 'MHR' + Math.random().toString(36).substring(2, 8).toUpperCase()
 
-      // Simpan client ke database
       const { data: client, error: clientError } = await supabase
         .from('clients')
         .insert({
           nama_pemilik: form.nama_pemilik,
           email: form.email.toLowerCase(),
-          password_hash: form.password, // nanti diganti bcrypt
+          password_hash: form.password,
           nomor_wa_pemilik: form.nomor_wa_pemilik,
           status: 'trial',
           referral_code: referralCode,
@@ -75,23 +84,19 @@ export default function Daftar() {
         .single()
 
       if (clientError) {
-        if (clientError.code === '23505') {
-          setError('Email sudah terdaftar. Silakan masuk atau gunakan email lain.')
-        } else {
-          setError('Gagal membuat akun. Silakan coba lagi.')
-        }
+        if (clientError.code === '23505') setError('Email sudah terdaftar. Silakan masuk atau gunakan email lain.')
+        else setError('Gagal membuat akun. Silakan coba lagi.')
         setLoading(false)
         return
       }
 
-      // Simpan toko
-      const { data: store, error: storeError } = await supabase
+      const { error: storeError } = await supabase
         .from('stores')
         .insert({
           client_id: client.id,
           nama_toko: form.nama_toko,
-		  slug: form.slug,
-          nomor_wa_toko: form.nomor_wa_toko.replace(/\D/g, ''),
+          slug: form.slug,
+          nomor_wa_toko: form.nomor_wa_toko,
           kategori: form.kategori,
           deskripsi: form.deskripsi,
           jam_buka: form.jam_buka,
@@ -110,38 +115,54 @@ export default function Daftar() {
         .single()
 
       if (storeError) {
-        setError('Gagal menyimpan data toko. Nomor WA mungkin sudah terdaftar.')
+        setError('Gagal menyimpan data toko. Slug atau nomor WA mungkin sudah terdaftar.')
         setLoading(false)
         return
       }
 
-      // Proses kode referral jika ada
-	  if (form.kode_referral) {
-		const { data: referrer } = await supabase
-		.from('clients')
-		.select('id')
-		.eq('referral_code', form.kode_referral.toUpperCase())
-		.single()
+      // Proses kode referral — cek dari tabel clients DAN tabel partners
+      if (form.kode_referral) {
+        const kode = form.kode_referral.toUpperCase()
 
-	  if (referrer) {
-		await supabase.from('referrals').insert({
-		referrer_id: referrer.id,
-		referred_id: client.id,
-		status: 'aktif',
-		diskon_referrer: 10,
-		diskon_referred: 10,
-		sudah_diklaim: false,
-		})
+        // Cek dari klien biasa
+        const { data: referrerClient } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('referral_code', kode)
+          .single()
 
-		await supabase
-		.from('clients')
-		.update({ referred_by: referrer.id })
-		.eq('id', client.id)
-		}
-	  }
-	  
-	  
-	  // Buat onboarding steps
+        if (referrerClient) {
+          await supabase.from('referrals').insert({
+            referrer_id: referrerClient.id,
+            referred_id: client.id,
+            referral_code: kode,
+            status: 'aktif',
+            diskon_referrer: 10,
+            diskon_referred: 10,
+            sudah_diklaim: false,
+          })
+          await supabase.from('clients').update({ referred_by: referrerClient.id }).eq('id', client.id)
+        } else {
+          // Cek dari partner
+          const { data: referrerPartner } = await supabase
+            .from('partners')
+            .select('id')
+            .eq('referral_code', kode)
+            .eq('status', 'aktif')
+            .single()
+
+          if (referrerPartner) {
+            await supabase.from('referrals').insert({
+              referrer_id: referrerPartner.id,
+              referred_id: client.id,
+              referral_code: kode,
+              status: 'aktif',
+              sudah_diklaim: false,
+            })
+          }
+        }
+      }
+
       await supabase.from('onboarding_steps').insert({
         client_id: client.id,
         step_daftar: true,
@@ -155,32 +176,15 @@ export default function Daftar() {
         persen_selesai: 25,
       })
 
-      // Kirim email welcome
       try {
         await fetch('/api/email/welcome', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-        nama: form.nama_pemilik,
-        email: form.email,
-        nama_toko: form.nama_toko,
-        slug: form.slug,
-       })
-     })
-    } catch {
-      // Email gagal tidak menghentikan proses daftar
-      console.error('Email welcome gagal terkirim')
-    }
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nama: form.nama_pemilik, email: form.email, nama_toko: form.nama_toko, slug: form.slug })
+        })
+      } catch { console.error('Email welcome gagal') }
 
-// Lanjut ke step 3 (sukses)
-setStep(3)
-	  
-	  
-	  
-	  
-	  // Lanjut ke step 3 (sukses)
       setStep(3)
-
     } catch (err) {
       setError('Terjadi kesalahan. Silakan coba lagi.')
       console.error(err)
@@ -189,7 +193,7 @@ setStep(3)
     }
   }
 
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: '100%',
     background: 'rgba(255,255,255,0.05)',
     border: '1px solid rgba(255,255,255,0.12)',
@@ -199,9 +203,10 @@ setStep(3)
     fontSize: '0.9rem',
     fontFamily: 'inherit',
     outline: 'none',
+    transition: 'border-color 0.2s',
   }
 
-  const labelStyle = {
+  const labelStyle: React.CSSProperties = {
     display: 'block',
     fontSize: '0.82rem',
     fontWeight: 600,
@@ -210,9 +215,9 @@ setStep(3)
   }
 
   const kategoriList = [
-    'Kuliner & Makanan', 'Fashion & Pakaian', 'Kecantikan & Skincare',
-    'Elektronik', 'Kesehatan', 'Pendidikan', 'Properti', 'Otomotif',
-    'Jasa & Layanan', 'Retail & Toko', 'Lainnya'
+    'Kuliner & Makanan','Fashion & Pakaian','Kecantikan & Skincare',
+    'Elektronik','Kesehatan','Pendidikan','Properti','Otomotif',
+    'Jasa & Layanan','Retail & Toko','Lainnya'
   ]
 
   return (
@@ -230,7 +235,7 @@ setStep(3)
         .checkmark { animation: checkmark 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards; }
       `}</style>
 
-      {/* Header */}
+      {/* Nav */}
       <nav style={{ padding: '0 5%', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#fff' }}>
           <div style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg,#25d366,#128c7e)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px' }}>💬</div>
@@ -241,19 +246,15 @@ setStep(3)
         </span>
       </nav>
 
-      {/* Progress bar */}
+      {/* Progress */}
       {step < 3 && (
         <div style={{ padding: '0 5%', paddingTop: '32px', maxWidth: '560px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
             {[1, 2].map(s => (
               <div key={s} style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                <div style={{
-                  width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: step >= s ? 'linear-gradient(135deg,#25d366,#128c7e)' : 'rgba(255,255,255,0.06)',
-                  border: step >= s ? 'none' : '1px solid rgba(255,255,255,0.12)',
-                  fontWeight: 700, fontSize: '0.85rem', color: step >= s ? '#fff' : 'rgba(255,255,255,0.4)',
-                  flexShrink: 0, transition: 'all 0.3s'
-                }}>{step > s ? '✓' : s}</div>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: step >= s ? 'linear-gradient(135deg,#25d366,#128c7e)' : 'rgba(255,255,255,0.06)', border: step >= s ? 'none' : '1px solid rgba(255,255,255,0.12)', fontWeight: 700, fontSize: '0.85rem', color: step >= s ? '#fff' : 'rgba(255,255,255,0.4)', flexShrink: 0, transition: 'all 0.3s' }}>
+                  {step > s ? '✓' : s}
+                </div>
                 <span style={{ fontSize: '0.8rem', color: step >= s ? '#fff' : 'rgba(255,255,255,0.35)', fontWeight: step >= s ? 600 : 400 }}>
                   {s === 1 ? 'Info Akun' : 'Info Toko'}
                 </span>
@@ -266,113 +267,149 @@ setStep(3)
 
       <div style={{ maxWidth: '560px', margin: '0 auto', padding: '0 5% 60px' }}>
 
-        {/* STEP 1 — Info Akun */}
+        {/* STEP 1 */}
         {step === 1 && (
           <div className="fadeUp">
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '6px' }}>Buat akun Mahirusaha</h1>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', marginBottom: '28px' }}>Gratis 100 pesan pertama, tidak perlu kartu kredit</p>
+
+            {/* Banner referral jika datang dari link partner */}
+            {refFromUrl && (
+              <div style={{ background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.25)', borderRadius: '12px', padding: '14px 16px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.2rem' }}>🎁</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#818cf8', marginBottom: '2px' }}>Kamu diundang oleh partner Mahirusaha!</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>Kode referral <strong style={{ color: '#818cf8' }}>{form.kode_referral}</strong> sudah terpasang otomatis</div>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleStep1} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={labelStyle}>Nama lengkap *</label>
                 <input required style={inputStyle} placeholder="Mohammad Khoiron" value={form.nama_pemilik} onChange={e => update('nama_pemilik', e.target.value)} />
               </div>
+
               <div>
                 <label style={labelStyle}>Email *</label>
                 <input required type="email" style={inputStyle} placeholder="kamu@email.com" value={form.email} onChange={e => update('email', e.target.value)} />
               </div>
+
               <div>
                 <label style={labelStyle}>Nomor WhatsApp *</label>
-                <input required style={inputStyle} placeholder="08xxxxxxxxxx" value={form.nomor_wa_pemilik} onChange={e => update('nomor_wa_pemilik', e.target.value)} />
-                <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>Untuk notifikasi akun dan informasi penting</span>
+                <input
+                  required
+                  style={inputStyle}
+                  placeholder="08xxxxxxxxxx atau 628xxxxxxxxxx"
+                  value={form.nomor_wa_pemilik}
+                  onChange={e => handleNomorWA('nomor_wa_pemilik', e.target.value)}
+                />
+                <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
+                  Format otomatis: 08xxx → 628xxx · Untuk notifikasi akun
+                </span>
+                {form.nomor_wa_pemilik && (
+                  <span style={{ fontSize: '0.72rem', color: '#25d366', marginTop: '2px', display: 'block' }}>
+                    ✓ Tersimpan: {form.nomor_wa_pemilik}
+                  </span>
+                )}
               </div>
+
               <div>
                 <label style={labelStyle}>Password *</label>
                 <input required type="password" style={inputStyle} placeholder="Minimal 8 karakter" value={form.password} onChange={e => update('password', e.target.value)} />
               </div>
+
               <div>
                 <label style={labelStyle}>Konfirmasi password *</label>
                 <input required type="password" style={inputStyle} placeholder="Ulangi password" value={form.konfirmasi_password} onChange={e => update('konfirmasi_password', e.target.value)} />
               </div>
 
+              {/* Kode Referral */}
+              <div>
+                <label style={labelStyle}>
+                  Kode referral{' '}
+                  {!refFromUrl && <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(opsional)</span>}
+                </label>
+                <input
+                  style={{ ...inputStyle, opacity: refFromUrl ? 0.7 : 1, cursor: refFromUrl ? 'not-allowed' : 'text' }}
+                  placeholder="Contoh: MHRABC123"
+                  value={form.kode_referral}
+                  readOnly={refFromUrl}
+                  onChange={e => { if (!refFromUrl) update('kode_referral', e.target.value.toUpperCase()) }}
+                />
+                {refFromUrl ? (
+                  <span style={{ fontSize: '0.72rem', color: '#818cf8', marginTop: '4px', display: 'block' }}>
+                    🔒 Kode referral terpasang otomatis dari link undangan
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
+                    Dapat kode dari teman atau partner? Masukkan di sini
+                  </span>
+                )}
+              </div>
+
               {error && (
-                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', fontSize: '0.85rem', color: '#fca5a5' }}>
-                  ⚠️ {error}
-                </div>
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', fontSize: '0.85rem', color: '#fca5a5' }}>⚠️ {error}</div>
               )}
-
-			<div>
-				<label style={labelStyle}>Kode referral <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(opsional)</span></label>
-				<input
-				style={inputStyle}
-				placeholder="Contoh: MHRABC123"
-				value={form.kode_referral}
-				onChange={e => update('kode_referral', e.target.value.toUpperCase())}
-				/>
-				<span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
-					Dapat kode dari teman? Masukkan di sini untuk dapat diskon 10%
-				</span>
-			</div>	
-
-
 
               <button type="submit" style={{ background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '14px', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px' }}>
                 Lanjut → Info Toko
               </button>
 
               <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', lineHeight: 1.6 }}>
-                Dengan mendaftar, kamu menyetujui <a href="/syarat" style={{ color: '#25d366', textDecoration: 'none' }}>Syarat Layanan</a> dan <a href="/privasi" style={{ color: '#25d366', textDecoration: 'none' }}>Kebijakan Privasi</a> Mahirusaha.
+                Dengan mendaftar, kamu menyetujui{' '}
+                <a href="/syarat" style={{ color: '#25d366', textDecoration: 'none' }}>Syarat Layanan</a> dan{' '}
+                <a href="/privasi" style={{ color: '#25d366', textDecoration: 'none' }}>Kebijakan Privasi</a> Mahirusaha.
               </p>
             </form>
           </div>
         )}
 
-        {/* STEP 2 — Info Toko */}
+        {/* STEP 2 */}
         {step === 2 && (
           <div className="fadeUp">
-            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '20px', padding: 0, display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>
-              ← Kembali
-            </button>
+            <button onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.85rem', marginBottom: '20px', padding: 0, display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'inherit' }}>← Kembali</button>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '6px' }}>Info toko kamu</h1>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', marginBottom: '28px' }}>Bot akan menggunakan info ini untuk menjawab pelanggan</p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
-              {/* Wajib */}
+              {/* Informasi Utama */}
               <div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '12px', padding: '16px', marginBottom: '4px' }}>
                 <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#25d366', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Informasi Utama</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  
-				  <div>
+                  <div>
                     <label style={labelStyle}>Nama toko / bisnis *</label>
                     <input required style={inputStyle} placeholder="Warung Makan Bu Sari" value={form.nama_toko} onChange={e => update('nama_toko', e.target.value)} />
                   </div>
-                  
-				  <div>
-					<label style={labelStyle}>Link Toko Online *</label>
-					<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-					<span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>mahirusaha.com/</span>
-					<input
-						required
-						style={inputStyle}
-						placeholder="nama-toko-kamu"
-						value={form.slug || ''}
-						onChange={e => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/\s+/g, '-'))}
-					/>
-				</div>
-					<span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
-					Hanya huruf kecil, angka, dan tanda (-). Contoh: warung-bu-sari
-					</span>
-				</div>
-				  
-				  <div>
-                    <label style={labelStyle}>Nomor WhatsApp toko *</label>
-                    <input required style={inputStyle} placeholder="628xxxxxxxxxx (format internasional)" value={form.nomor_wa_toko} onChange={e => update('nomor_wa_toko', e.target.value)} />
-                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>Nomor WA khusus untuk bot — JANGAN pakai nomor yang sudah ada WhatsApp-nya!</span>
+                  <div>
+                    <label style={labelStyle}>Link Toko Online *</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>mahirusaha.com/</span>
+                      <input required style={inputStyle} placeholder="nama-toko-kamu" value={form.slug} onChange={e => update('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/\s+/g, '-'))} />
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>Hanya huruf kecil, angka, dan tanda (-). Contoh: warung-bu-sari</span>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Nomor WhatsApp Bot *</label>
+                    <input
+                      required
+                      style={inputStyle}
+                      placeholder="08xxxxxxxxxx atau 628xxxxxxxxxx"
+                      value={form.nomor_wa_toko}
+                      onChange={e => handleNomorWA('nomor_wa_toko', e.target.value)}
+                    />
+                    <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '4px', display: 'block' }}>
+                      Format otomatis: 08xxx → 628xxx · Nomor khusus bot, JANGAN pakai nomor yang sudah ada WA-nya!
+                    </span>
+                    {form.nomor_wa_toko && (
+                      <span style={{ fontSize: '0.72rem', color: '#25d366', marginTop: '2px', display: 'block' }}>
+                        ✓ Tersimpan: {form.nomor_wa_toko}
+                      </span>
+                    )}
                   </div>
                   <div>
                     <label style={labelStyle}>Kategori bisnis *</label>
-                    <select required style={{ ...inputStyle, appearance: 'none' }} value={form.kategori} onChange={e => update('kategori', e.target.value)}>
+                    <select required style={{ ...inputStyle, appearance: 'none' as const }} value={form.kategori} onChange={e => update('kategori', e.target.value)}>
                       <option value="">Pilih kategori...</option>
                       {kategoriList.map(k => <option key={k} value={k}>{k}</option>)}
                     </select>
@@ -415,19 +452,17 @@ setStep(3)
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
                     <label style={labelStyle}>Deskripsi bisnis</label>
-                    <textarea rows={3} style={{ ...inputStyle, resize: 'none' }} placeholder="Ceritakan bisnis kamu... Bot akan menggunakan ini untuk memperkenalkan diri ke pelanggan." value={form.deskripsi} onChange={e => update('deskripsi', e.target.value)} />
+                    <textarea rows={3} style={{ ...inputStyle, resize: 'none' as const }} placeholder="Ceritakan bisnis kamu... Bot akan menggunakan ini untuk memperkenalkan diri ke pelanggan." value={form.deskripsi} onChange={e => update('deskripsi', e.target.value)} />
                   </div>
                   <div>
                     <label style={labelStyle}>Pesan sambutan bot</label>
-                    <textarea rows={2} style={{ ...inputStyle, resize: 'none' }} placeholder="Halo! Selamat datang di [nama toko]. Ada yang bisa saya bantu? 😊" value={form.pesan_sambutan} onChange={e => update('pesan_sambutan', e.target.value)} />
+                    <textarea rows={2} style={{ ...inputStyle, resize: 'none' as const }} placeholder="Halo! Selamat datang di [nama toko]. Ada yang bisa saya bantu? 😊" value={form.pesan_sambutan} onChange={e => update('pesan_sambutan', e.target.value)} />
                   </div>
                 </div>
               </div>
 
               {error && (
-                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', fontSize: '0.85rem', color: '#fca5a5' }}>
-                  ⚠️ {error}
-                </div>
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', fontSize: '0.85rem', color: '#fca5a5' }}>⚠️ {error}</div>
               )}
 
               <button type="submit" disabled={loading} style={{ background: loading ? 'rgba(37,211,102,0.5)' : 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '14px', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', marginTop: '4px' }}>
@@ -437,7 +472,7 @@ setStep(3)
           </div>
         )}
 
-        {/* STEP 3 — Sukses */}
+        {/* STEP 3 - Sukses */}
         {step === 3 && (
           <div className="fadeUp" style={{ textAlign: 'center', paddingTop: '40px' }}>
             <div className="checkmark" style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg,#25d366,#128c7e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', margin: '0 auto 24px' }}>✅</div>
@@ -446,29 +481,22 @@ setStep(3)
               Akun dan bot <strong style={{ color: '#25d366' }}>{form.nama_toko}</strong> sudah aktif.<br/>
               Kamu mendapat <strong style={{ color: '#25d366' }}>100 pesan gratis</strong> untuk mencoba semua fitur.
             </p>
-
-            {/* Next steps */}
             <div style={{ background: 'rgba(37,211,102,0.06)', border: '1px solid rgba(37,211,102,0.2)', borderRadius: '16px', padding: '24px', marginBottom: '24px', textAlign: 'left' }}>
               <p style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '16px' }}>Langkah selanjutnya:</p>
               {[
-                { num: '1', text: 'Tambahkan produk di dashboard agar bot bisa menjelaskan detail produkmu', done: false },
-                { num: '2', text: 'Test bot dengan kirim pesan ke nomor WA tokomu', done: false },
-                { num: '3', text: 'Bagikan nomor WA toko ke pelanggan dan lihat bot bekerja!', done: false },
-              ].map(s => (
-                <div key={s.num} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '12px', fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)' }}>
-                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#25d366', flexShrink: 0 }}>{s.num}</div>
-                  {s.text}
+                'Tambahkan produk di dashboard agar bot bisa menjelaskan detail produkmu',
+                'Test bot dengan kirim pesan ke nomor WA tokomu',
+                'Bagikan nomor WA toko ke pelanggan dan lihat bot bekerja!',
+              ].map((s, i) => (
+                <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '12px', fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)' }}>
+                  <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#25d366', flexShrink: 0 }}>{i + 1}</div>
+                  {s}
                 </div>
               ))}
             </div>
-
             <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
-              <a href="/dashboard" style={{ display: 'block', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '14px', borderRadius: '12px', textDecoration: 'none', fontWeight: 700, fontSize: '0.95rem' }}>
-                Masuk ke Dashboard →
-              </a>
-              <a href="/dashboard/produk" style={{ display: 'block', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '14px', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>
-                Tambah Produk Sekarang
-              </a>
+              <a href="/dashboard" style={{ display: 'block', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '14px', borderRadius: '12px', textDecoration: 'none', fontWeight: 700, fontSize: '0.95rem' }}>Masuk ke Dashboard →</a>
+              <a href="/dashboard/produk" style={{ display: 'block', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '14px', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>Tambah Produk Sekarang</a>
             </div>
           </div>
         )}
