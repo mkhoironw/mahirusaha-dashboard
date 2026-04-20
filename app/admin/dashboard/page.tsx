@@ -213,7 +213,7 @@ export default function AdminDashboard() {
         await fetch('/api/partner/approve-notif', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nama, nomor_wa: nomorWa })
+          body: JSON.stringify({ nama, nomor_wa: nomorWa, email: app.email })
         })
       } catch {}
 
