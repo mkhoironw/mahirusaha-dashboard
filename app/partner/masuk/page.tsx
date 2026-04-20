@@ -17,38 +17,39 @@ export default function PartnerMasuk() {
     setLoading(true)
     setError('')
     try {
-      // Cek di tabel clients yang is_partner = true
-      const { data: client } = await supabase
-        .from('clients')
+      // Cek di tabel partners
+      const { data: partner } = await supabase
+        .from('partners')
         .select('*')
         .eq('email', form.email)
-        .eq('is_partner', true)
+        .eq('password', form.password)
         .single()
 
-      if (!client) {
-        setError('Email tidak terdaftar sebagai partner atau belum diapprove')
+      if (!partner) {
+        setError('Email atau password salah')
         setLoading(false)
         return
       }
 
-      // Verifikasi password via Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: form.email,
-        password: form.password,
-      })
+      if (partner.status === 'pending') {
+        setError('Akun partner kamu sedang dalam proses review. Tim kami akan menghubungi kamu dalam 24 jam.')
+        setLoading(false)
+        return
+      }
 
-      if (authError || !authData.user) {
-        setError('Email atau password salah')
+      if (partner.status === 'ditolak') {
+        setError('Pendaftaran partner kamu tidak disetujui. Hubungi tim kami untuk info lebih lanjut.')
         setLoading(false)
         return
       }
 
       // Simpan session partner
       localStorage.setItem('mahirusaha_partner', JSON.stringify({
-        id: client.id,
-        nama: client.nama_pemilik,
-        email: client.email,
-        komisi_persen: client.komisi_persen || 15,
+        id: partner.id,
+        nama: partner.nama_lengkap,
+        email: partner.email,
+        komisi_persen: partner.komisi_persen || 15,
+        referral_code: partner.referral_code,
       }))
 
       window.location.href = '/partner/dashboard'
@@ -93,7 +94,6 @@ export default function PartnerMasuk() {
         <a href="/partner/daftar" style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>Belum punya akun? Daftar →</a>
       </nav>
 
-      {/* Form */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: '420px' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
@@ -105,55 +105,36 @@ export default function PartnerMasuk() {
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
             {error && (
-              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', fontSize: '0.82rem', color: '#EF4444' }}>
+              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '12px 16px', fontSize: '0.82rem', color: '#EF4444', lineHeight: 1.6 }}>
                 ❌ {error}
               </div>
             )}
 
             <div>
               <label style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Email</label>
-              <input
-                type="email"
-                style={inputStyle}
-                placeholder="email@kamu.com"
-                value={form.email}
-                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              />
+              <input type="email" style={inputStyle} placeholder="email@kamu.com" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
             </div>
 
             <div>
               <label style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>Password</label>
-              <input
-                type="password"
-                style={inputStyle}
-                placeholder="••••••••"
-                value={form.password}
-                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              />
+              <input type="password" style={inputStyle} placeholder="••••••••" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
             </div>
 
-            <button
-              onClick={handleLogin}
-              disabled={loading}
-              style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1, marginTop: '8px' }}
-            >
+            <button onClick={handleLogin} disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: loading ? 0.7 : 1, marginTop: '8px' }}>
               {loading ? '⏳ Memverifikasi...' : '🔐 Masuk Dashboard'}
             </button>
 
             <div style={{ textAlign: 'center', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
               <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
-                Belum punya akun partner?{' '}
-                <a href="/partner/daftar" style={{ color: '#818cf8', fontWeight: 600, textDecoration: 'none' }}>Daftar sekarang</a>
+                Belum punya akun?{' '}
+                <a href="/partner/daftar" style={{ color: '#818cf8', fontWeight: 600, textDecoration: 'none' }}>Daftar partner</a>
               </p>
             </div>
           </div>
 
-          {/* Info */}
           <div style={{ marginTop: '20px', background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.15)', borderRadius: '12px', padding: '14px 16px' }}>
             <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
-              💡 Akun partner menggunakan email dan password yang sama dengan akun Mahirusaha kamu. Jika belum punya akun, daftar dulu sebagai partner.
+              💡 Gunakan email dan password yang kamu daftarkan saat mendaftar partner. Akun partner <strong style={{ color: '#fff' }}>terpisah</strong> dari akun klien Mahirusaha.
             </p>
           </div>
 

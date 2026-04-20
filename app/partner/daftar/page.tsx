@@ -13,6 +13,8 @@ export default function PartnerDaftar() {
   const [form, setForm] = useState({
     nama_lengkap: '',
     email: '',
+    password: '',
+    konfirmasi_password: '',
     nomor_wa: '',
     domisili: '',
     profesi: '',
@@ -24,33 +26,65 @@ export default function PartnerDaftar() {
 
   const update = (key: string, value: string | boolean) => setForm(p => ({ ...p, [key]: value }))
 
+  const generateReferralCode = (nama: string) => {
+    const prefix = 'MHR'
+    const namaCode = nama.replace(/\s+/g, '').toUpperCase().substring(0, 4)
+    const random = Math.floor(1000 + Math.random() * 9000)
+    return `${prefix}${namaCode}${random}`
+  }
+
   const handleSubmit = async () => {
     if (!form.setuju) { alert('Harap setujui syarat & ketentuan'); return }
+    if (form.password !== form.konfirmasi_password) { alert('Password tidak cocok'); return }
+    if (form.password.length < 8) { alert('Password minimal 8 karakter'); return }
+
     setLoading(true)
     try {
-      // Simpan pendaftaran ke database
-      const { error } = await supabase.from('partner_applications').insert({
+      // Cek apakah email sudah terdaftar
+      const { data: existing } = await supabase
+        .from('partners')
+        .select('id')
+        .eq('email', form.email)
+        .single()
+
+      if (existing) {
+        alert('Email sudah terdaftar sebagai partner')
+        setLoading(false)
+        return
+      }
+
+      const referralCode = generateReferralCode(form.nama_lengkap)
+
+      // Simpan ke tabel partners
+      const { error } = await supabase.from('partners').insert({
         nama_lengkap: form.nama_lengkap,
         email: form.email,
+        password: form.password,
         nomor_wa: form.nomor_wa.replace(/\D/g, ''),
         domisili: form.domisili,
         profesi: form.profesi,
         jaringan_umkm: form.jaringan_umkm,
         estimasi_kontak: form.estimasi_kontak,
         alasan: form.alasan,
+        referral_code: referralCode,
+        komisi_persen: 15,
         status: 'pending',
       })
 
       if (error) throw error
 
-      // Kirim notif ke admin via WA
+      // Notif ke admin
       await fetch('/api/partner/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama: form.nama_lengkap, email: form.email, nomor_wa: form.nomor_wa })
-      })
+        body: JSON.stringify({
+          nama: form.nama_lengkap,
+          email: form.email,
+          nomor_wa: form.nomor_wa
+        })
+      }).catch(() => {})
 
-      setStep(3) // Success
+      setStep(3)
     } catch (err) {
       console.error(err)
       alert('Terjadi kesalahan. Coba lagi.')
@@ -101,14 +135,11 @@ export default function PartnerDaftar() {
 
       <div style={{ maxWidth: '560px', margin: '0 auto', padding: '48px 24px 80px' }}>
 
-        {/* Header */}
         {step !== 3 && (
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🤝</div>
             <h1 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '8px' }}>Daftar Jadi Partner</h1>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>Isi form di bawah ini — tim kami akan review dalam 24 jam</p>
-
-            {/* Progress */}
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem' }}>Isi form di bawah — tim kami review dalam 24 jam</p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '20px' }}>
               {[1, 2].map(s => (
                 <div key={s} style={{ height: '4px', width: '60px', borderRadius: '100px', background: step >= s ? 'linear-gradient(90deg,#818cf8,#6366f1)' : 'rgba(255,255,255,0.1)' }} />
@@ -118,10 +149,10 @@ export default function PartnerDaftar() {
           </div>
         )}
 
-        {/* Step 1 - Data Pribadi */}
+        {/* Step 1 */}
         {step === 1 && (
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>📋 Data Pribadi</h2>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>📋 Data Pribadi & Akun</h2>
 
             <div>
               <label style={labelStyle}>Nama Lengkap *</label>
@@ -131,6 +162,17 @@ export default function PartnerDaftar() {
             <div>
               <label style={labelStyle}>Email *</label>
               <input type="email" style={inputStyle} placeholder="email@kamu.com" value={form.email} onChange={e => update('email', e.target.value)} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={labelStyle}>Password *</label>
+                <input type="password" style={inputStyle} placeholder="Min. 8 karakter" value={form.password} onChange={e => update('password', e.target.value)} />
+              </div>
+              <div>
+                <label style={labelStyle}>Konfirmasi Password *</label>
+                <input type="password" style={inputStyle} placeholder="Ulangi password" value={form.konfirmasi_password} onChange={e => update('konfirmasi_password', e.target.value)} />
+              </div>
             </div>
 
             <div>
@@ -144,7 +186,7 @@ export default function PartnerDaftar() {
             </div>
 
             <div>
-              <label style={labelStyle}>Profesi / Pekerjaan</label>
+              <label style={labelStyle}>Profesi</label>
               <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.profesi} onChange={e => update('profesi', e.target.value)}>
                 <option value="" style={{ background: '#111827' }}>Pilih profesi...</option>
                 {['Pengusaha/UMKM','Konsultan Bisnis','Komunitas/Organisasi','Content Creator/Influencer','Mahasiswa','Karyawan','Lainnya'].map(p => (
@@ -155,7 +197,9 @@ export default function PartnerDaftar() {
 
             <button
               onClick={() => {
-                if (!form.nama_lengkap || !form.email || !form.nomor_wa) { alert('Harap isi semua field wajib'); return }
+                if (!form.nama_lengkap || !form.email || !form.password || !form.nomor_wa) { alert('Harap isi semua field wajib'); return }
+                if (form.password !== form.konfirmasi_password) { alert('Password tidak cocok'); return }
+                if (form.password.length < 8) { alert('Password minimal 8 karakter'); return }
                 setStep(2)
               }}
               style={{ width: '100%', padding: '14px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', fontFamily: 'inherit', marginTop: '8px' }}
@@ -165,20 +209,14 @@ export default function PartnerDaftar() {
           </div>
         )}
 
-        {/* Step 2 - Info Jaringan */}
+        {/* Step 2 */}
         {step === 2 && (
-          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '20px', padding: '28px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <h2 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>🌐 Info Jaringan UMKM</h2>
 
             <div>
               <label style={labelStyle}>Jaringan UMKM yang kamu miliki *</label>
-              <textarea
-                style={{ ...inputStyle, resize: 'none' }}
-                rows={3}
-                placeholder="Contoh: Saya aktif di komunitas pengusaha muda Surabaya dengan 500+ anggota, juga admin grup WA UMKM Jatim..."
-                value={form.jaringan_umkm}
-                onChange={e => update('jaringan_umkm', e.target.value)}
-              />
+              <textarea style={{ ...inputStyle, resize: 'none' }} rows={3} placeholder="Contoh: Saya aktif di komunitas pengusaha muda Surabaya dengan 500+ anggota..." value={form.jaringan_umkm} onChange={e => update('jaringan_umkm', e.target.value)} />
             </div>
 
             <div>
@@ -192,54 +230,32 @@ export default function PartnerDaftar() {
             </div>
 
             <div>
-              <label style={labelStyle}>Mengapa ingin jadi partner Mahirusaha? *</label>
-              <textarea
-                style={{ ...inputStyle, resize: 'none' }}
-                rows={4}
-                placeholder="Ceritakan motivasi kamu dan bagaimana rencana kamu untuk mengenalkan Mahirusaha ke jaringan UMKM..."
-                value={form.alasan}
-                onChange={e => update('alasan', e.target.value)}
-              />
+              <label style={labelStyle}>Mengapa ingin jadi partner? *</label>
+              <textarea style={{ ...inputStyle, resize: 'none' }} rows={4} placeholder="Ceritakan motivasi dan rencana kamu..." value={form.alasan} onChange={e => update('alasan', e.target.value)} />
             </div>
 
-            {/* Syarat & Ketentuan */}
+            {/* Syarat */}
             <div style={{ background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.15)', borderRadius: '12px', padding: '16px' }}>
-              <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, marginBottom: '12px' }}>
-                Dengan mendaftar sebagai partner Mahirusaha, kamu setuju bahwa:
-              </p>
+              <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, marginBottom: '12px' }}>Dengan mendaftar, kamu setuju bahwa:</p>
               <ul style={{ paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {[
-                  'Komisi 15% dihitung dari harga paket klien yang berhasil didaftarkan',
+                  'Komisi 15% dihitung dari harga paket klien setiap bulan',
                   'Komisi dibayarkan setiap awal bulan untuk transaksi bulan sebelumnya',
-                  'Mahirusaha berhak mengubah persentase komisi dengan pemberitahuan 30 hari',
-                  'Partner dilarang memberikan informasi yang menyesatkan kepada calon klien',
+                  'Mahirusaha berhak mengubah komisi dengan pemberitahuan 30 hari',
+                  'Partner dilarang memberikan informasi menyesatkan ke calon klien',
                 ].map((s, i) => (
                   <li key={i} style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>{s}</li>
                 ))}
               </ul>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px' }}>
-                <input
-                  type="checkbox"
-                  id="setuju"
-                  checked={form.setuju}
-                  onChange={e => update('setuju', e.target.checked)}
-                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#818cf8' }}
-                />
-                <label htmlFor="setuju" style={{ fontSize: '0.82rem', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-                  Saya setuju dengan syarat & ketentuan partner
-                </label>
+                <input type="checkbox" id="setuju" checked={form.setuju} onChange={e => update('setuju', e.target.checked)} style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#818cf8' }} />
+                <label htmlFor="setuju" style={{ fontSize: '0.82rem', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>Saya setuju dengan syarat & ketentuan</label>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-              <button onClick={() => setStep(1)} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-                ← Kembali
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju || loading}
-                style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', cursor: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }}
-              >
+              <button onClick={() => setStep(1)} style={{ flex: 1, padding: '13px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>← Kembali</button>
+              <button onClick={handleSubmit} disabled={!form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju || loading} style={{ flex: 2, padding: '13px', borderRadius: '12px', border: 'none', background: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', cursor: !form.jaringan_umkm || !form.estimasi_kontak || !form.alasan || !form.setuju ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.95rem', opacity: loading ? 0.7 : 1 }}>
                 {loading ? '⏳ Mengirim...' : '🤝 Kirim Pendaftaran'}
               </button>
             </div>
@@ -252,27 +268,21 @@ export default function PartnerDaftar() {
             <div style={{ fontSize: '4rem', marginBottom: '20px' }}>🎉</div>
             <h2 style={{ fontWeight: 800, fontSize: '1.5rem', marginBottom: '12px' }}>Pendaftaran Berhasil!</h2>
             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', lineHeight: 1.7, marginBottom: '24px' }}>
-              Terima kasih <strong style={{ color: '#fff' }}>{form.nama_lengkap}</strong>! Pendaftaran partnermu sudah kami terima.
-              Tim kami akan review dan menghubungi kamu via WhatsApp <strong style={{ color: '#818cf8' }}>{form.nomor_wa}</strong> dalam 1x24 jam.
+              Terima kasih <strong style={{ color: '#fff' }}>{form.nama_lengkap}</strong>! Tim kami akan review dan menghubungi kamu via WhatsApp dalam 1x24 jam.
             </p>
             <div style={{ background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.2)', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}>
               <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
-                📱 Pastikan nomor WhatsApp kamu aktif dan bisa dihubungi.<br/>
-                📧 Cek email kamu untuk konfirmasi pendaftaran.<br/>
-                ⏰ Proses review maksimal 1x24 jam di jam kerja.
+                📱 Pastikan nomor WhatsApp kamu aktif.<br/>
+                ⏰ Proses review maksimal 1x24 jam di jam kerja.<br/>
+                🔐 Setelah diapprove, login dengan email & password yang kamu daftarkan.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/partner" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', padding: '12px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700, fontSize: '0.875rem' }}>
-                ← Kembali ke Partner
-              </a>
-              <a href="/" style={{ display: 'inline-block', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>
-                Ke Beranda
-              </a>
+              <a href="/partner/masuk" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', padding: '12px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700, fontSize: '0.875rem' }}>Masuk Dashboard →</a>
+              <a href="/partner" style={{ display: 'inline-block', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>← Kembali</a>
             </div>
           </div>
         )}
-
       </div>
     </main>
   )

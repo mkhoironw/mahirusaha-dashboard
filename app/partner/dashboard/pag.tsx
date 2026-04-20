@@ -7,11 +7,12 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-interface Partner {
+interface PartnerSession {
   id: string
   nama: string
   email: string
   komisi_persen: number
+  referral_code: string
 }
 
 interface Komisi {
@@ -35,55 +36,40 @@ interface ReferredClient {
 }
 
 export default function PartnerDashboard() {
-  const [partner, setPartner] = useState<Partner | null>(null)
+  const [partner, setPartner] = useState<PartnerSession | null>(null)
   const [komisiList, setKomisiList] = useState<Komisi[]>([])
   const [referredClients, setReferredClients] = useState<ReferredClient[]>([])
   const [loading, setLoading] = useState(true)
   const [activeMenu, setActiveMenu] = useState('overview')
-  const [referralCode, setReferralCode] = useState('')
 
   useEffect(() => {
     const session = localStorage.getItem('mahirusaha_partner')
-    if (!session) {
-      window.location.href = '/partner/masuk'
-      return
-    }
+    if (!session) { window.location.href = '/partner/masuk'; return }
     const partnerData = JSON.parse(session)
     setPartner(partnerData)
-    loadDashboard(partnerData.id)
+    loadDashboard(partnerData.id, partnerData.referral_code)
   }, [])
 
-  const loadDashboard = async (partnerId: string) => {
+  const loadDashboard = async (partnerId: string, referralCode: string) => {
     try {
-      // Ambil data komisi partner
+      // Ambil komisi partner dari tabel partner_komisi
       const { data: komisiData } = await supabase
         .from('partner_komisi')
         .select('*')
-        .eq('partner_client_id', partnerId)
+        .eq('partner_id', partnerId)
         .order('created_at', { ascending: false })
 
       setKomisiList(komisiData || [])
 
-      // Ambil referral code partner
-      const { data: clientData } = await supabase
-        .from('clients')
-        .select('referral_code, komisi_persen')
-        .eq('id', partnerId)
-        .single()
-
-      if (clientData) {
-        setReferralCode(clientData.referral_code || '')
-        setPartner(prev => prev ? { ...prev, komisi_persen: clientData.komisi_persen || 15 } : prev)
-      }
-
-      // Ambil daftar klien yang direferensikan
+      // Ambil klien yang pakai kode referral partner
+      // (klien yang daftar pakai referral_code ini)
       const { data: referrals } = await supabase
         .from('referrals')
         .select('referred_id')
-        .eq('referrer_id', partnerId)
+        .eq('referral_code', referralCode)
 
       if (referrals && referrals.length > 0) {
-        const referredIds = referrals.map(r => r.referred_id)
+        const referredIds = referrals.map((r: { referred_id: string }) => r.referred_id)
         const { data: clientsData } = await supabase
           .from('clients')
           .select('id, nama_pemilik, email, paket, status, created_at')
@@ -106,11 +92,10 @@ export default function PartnerDashboard() {
   }
 
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
-  const namaBulan = (bulan: number) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][bulan - 1]
-  const getPaketColor = (paket: string) => ({ starter: '#25d366', pro: '#818cf8', bisnis: '#EF9F27', enterprise: '#6366f1' }[paket] || '#888')
-  const getStatusColor = (status: string) => ({ aktif: '#25d366', trial: '#EF9F27', suspend: '#EF4444' }[status] || '#888')
+  const namaBulan = (b: number) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][b - 1]
+  const getStatusColor = (s: string) => ({ aktif: '#25d366', trial: '#EF9F27', suspend: '#EF4444' }[s] || '#888')
+  const getPaketLabel = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
 
-  // Statistik
   const totalKomisi = komisiList.reduce((sum, k) => sum + k.jumlah_komisi, 0)
   const komisiPending = komisiList.filter(k => k.status === 'pending').reduce((sum, k) => sum + k.jumlah_komisi, 0)
   const komisiDibayar = komisiList.filter(k => k.status === 'dibayar').reduce((sum, k) => sum + k.jumlah_komisi, 0)
@@ -146,7 +131,6 @@ export default function PartnerDashboard() {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(129,140,248,0.3); border-radius: 2px; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes spin { to{transform:rotate(360deg)} }
         .fadeUp { animation: fadeUp 0.4s ease forwards; }
         .menu-item { transition: all 0.2s; cursor: pointer; }
         .menu-item:hover { background: rgba(255,255,255,0.05) !important; }
@@ -166,7 +150,6 @@ export default function PartnerDashboard() {
           </div>
         </div>
 
-        {/* Komisi Badge */}
         <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginBottom: '6px' }}>Komisi kamu</div>
           <div style={{ background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)', borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
@@ -195,23 +178,18 @@ export default function PartnerDashboard() {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN */}
       <div style={{ flex: 1, overflowY: 'auto', height: '100vh' }}>
         <div style={{ padding: '16px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(7,13,26,0.8)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 10 }}>
-          <h1 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-            {menuItems.find(m => m.id === activeMenu)?.icon} {menuItems.find(m => m.id === activeMenu)?.label}
-          </h1>
-          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-            {new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </div>
+          <h1 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{menuItems.find(m => m.id === activeMenu)?.icon} {menuItems.find(m => m.id === activeMenu)?.label}</h1>
+          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
         </div>
 
         <div style={{ padding: '24px 28px' }}>
 
-          {/* ===== OVERVIEW ===== */}
+          {/* OVERVIEW */}
           {activeMenu === 'overview' && (
             <div className="fadeUp">
-              {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '24px' }}>
                 {[
                   { icon: '💰', label: 'Komisi Bulan Ini', value: fmt(komisiBulanIni), color: '#818cf8' },
@@ -230,10 +208,9 @@ export default function PartnerDashboard() {
                 ))}
               </div>
 
-              {/* Info Komisi */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                 <div style={{ background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.15)', borderRadius: '16px', padding: '20px' }}>
-                  <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '14px', color: '#818cf8' }}>📊 Ringkasan Komisi</h3>
+                  <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '14px', color: '#818cf8' }}>📊 Ringkasan</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {[
                       { label: 'Total Klien Referral', value: referredClients.length.toString() },
@@ -253,13 +230,13 @@ export default function PartnerDashboard() {
                   <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '14px' }}>🔗 Link Referral Kamu</h3>
                   <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', marginBottom: '10px' }}>
                     <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '4px' }}>Kode Referral</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 800, letterSpacing: '3px', color: '#818cf8' }}>{referralCode || 'Loading...'}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '1.2rem', fontWeight: 800, letterSpacing: '3px', color: '#818cf8' }}>{partner?.referral_code || '-'}</div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn" onClick={() => { navigator.clipboard.writeText(`https://mahirusaha.com/daftar?ref=${referralCode}`); alert('Link disalin!') }} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'inherit' }}>
+                    <button className="btn" onClick={() => { navigator.clipboard.writeText(`https://mahirusaha.com/daftar?ref=${partner?.referral_code}`); alert('Link disalin!') }} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'inherit' }}>
                       📋 Salin Link
                     </button>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`Halo! Coba platform chatbot WA + toko online gratis untuk UMKM ini:\nhttps://mahirusaha.com/daftar?ref=${referralCode}`)}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', textAlign: 'center', padding: '9px', borderRadius: '8px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>
+                    <a href={`https://wa.me/?text=${encodeURIComponent(`Halo! Coba platform chatbot WA + toko online gratis:\nhttps://mahirusaha.com/daftar?ref=${partner?.referral_code}`)}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', textAlign: 'center', padding: '9px', borderRadius: '8px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>
                       📤 Share WA
                     </a>
                   </div>
@@ -286,11 +263,9 @@ export default function PartnerDashboard() {
                         <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{c.email}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.7rem', background: `rgba(${getPaketColor(c.paket) === '#25d366' ? '37,211,102' : getPaketColor(c.paket) === '#818cf8' ? '129,140,248' : '239,159,39'},0.15)`, color: getPaketColor(c.paket), padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>
-                          {c.paket.charAt(0).toUpperCase() + c.paket.slice(1)}
-                        </span>
+                        <span style={{ fontSize: '0.7rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>{getPaketLabel(c.paket)}</span>
                         <span style={{ fontSize: '0.72rem', color: getStatusColor(c.status), fontWeight: 600 }}>
-                          {c.status === 'aktif' ? '🟢 Aktif' : c.status === 'trial' ? '🟡 Trial' : '🔴 Suspend'}
+                          {c.status === 'aktif' ? '🟢' : c.status === 'trial' ? '🟡' : '🔴'} {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                         </span>
                       </div>
                     </div>
@@ -300,10 +275,9 @@ export default function PartnerDashboard() {
             </div>
           )}
 
-          {/* ===== KOMISI ===== */}
+          {/* KOMISI */}
           {activeMenu === 'komisi' && (
             <div className="fadeUp">
-              {/* Summary */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '24px' }}>
                 {[
                   { label: 'Total Komisi', value: fmt(totalKomisi), color: '#818cf8' },
@@ -317,7 +291,6 @@ export default function PartnerDashboard() {
                 ))}
               </div>
 
-              {/* Riwayat Komisi */}
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                   <h3 style={{ fontWeight: 700, fontSize: '0.9rem' }}>💰 Riwayat Komisi</h3>
@@ -326,7 +299,7 @@ export default function PartnerDashboard() {
                   <div style={{ padding: '60px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
                     <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💰</div>
                     <p style={{ fontWeight: 600, marginBottom: '6px' }}>Belum ada komisi</p>
-                    <p style={{ fontSize: '0.85rem' }}>Komisi akan masuk setelah klien referral kamu melakukan pembayaran</p>
+                    <p style={{ fontSize: '0.85rem' }}>Komisi masuk setelah klien referral kamu membayar</p>
                   </div>
                 ) : (
                   <>
@@ -339,7 +312,7 @@ export default function PartnerDashboard() {
                         <div key={k.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.04)', alignItems: 'center' }}>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{klien?.nama_pemilik || '-'}</div>
-                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{klien?.paket ? klien.paket.charAt(0).toUpperCase() + klien.paket.slice(1) : '-'}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{klien?.paket ? getPaketLabel(klien.paket) : '-'}</div>
                           </div>
                           <div style={{ fontWeight: 700, color: '#818cf8', fontSize: '0.875rem' }}>{fmt(k.jumlah_komisi)}</div>
                           <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>{namaBulan(k.bulan)} {k.tahun}</div>
@@ -360,16 +333,15 @@ export default function PartnerDashboard() {
                 )}
               </div>
 
-              {/* Info Pembayaran */}
               <div style={{ marginTop: '16px', background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.15)', borderRadius: '14px', padding: '16px 20px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
-                  💡 Komisi dengan status <strong style={{ color: '#EF9F27' }}>Pending</strong> akan ditransfer ke rekening kamu setiap awal bulan. Pastikan nomor rekening kamu sudah terdaftar. Hubungi tim kami di <strong style={{ color: '#818cf8' }}>+62 813-2531-210</strong> jika ada pertanyaan.
+                  💡 Komisi <strong style={{ color: '#EF9F27' }}>Pending</strong> ditransfer setiap awal bulan. Hubungi tim kami di <strong style={{ color: '#818cf8' }}>+62 813-2531-210</strong> untuk daftarkan nomor rekening kamu.
                 </p>
               </div>
             </div>
           )}
 
-          {/* ===== KLIEN REFERRAL ===== */}
+          {/* KLIEN REFERRAL */}
           {activeMenu === 'klien' && (
             <div className="fadeUp">
               <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '16px' }}>
@@ -380,7 +352,7 @@ export default function PartnerDashboard() {
                   <div style={{ padding: '60px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
                     <div style={{ fontSize: '3rem', marginBottom: '16px' }}>👥</div>
                     <p style={{ fontWeight: 600, marginBottom: '6px' }}>Belum ada klien referral</p>
-                    <p style={{ fontSize: '0.85rem' }}>Share link referralmu dan mulai dapatkan komisi!</p>
+                    <p style={{ fontSize: '0.85rem' }}>Share link referralmu!</p>
                     <button onClick={() => setActiveMenu('referral')} style={{ marginTop: '16px', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
                       🔗 Lihat Link Referral
                     </button>
@@ -394,17 +366,11 @@ export default function PartnerDashboard() {
                       <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '12px', padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.04)', alignItems: 'center' }}>
                         <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.nama_pemilik}</div>
                         <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
-                        <div>
-                          <span style={{ fontSize: '0.72rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>
-                            {c.paket.charAt(0).toUpperCase() + c.paket.slice(1)}
-                          </span>
-                        </div>
+                        <div><span style={{ fontSize: '0.72rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>{getPaketLabel(c.paket)}</span></div>
                         <div style={{ fontSize: '0.78rem', color: getStatusColor(c.status), fontWeight: 600 }}>
-                          {c.status === 'aktif' ? '🟢 Aktif' : c.status === 'trial' ? '🟡 Trial' : '🔴 Suspend'}
+                          {c.status === 'aktif' ? '🟢' : c.status === 'trial' ? '🟡' : '🔴'} {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                          {new Date(c.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}
-                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{new Date(c.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}</div>
                       </div>
                     ))}
                   </>
@@ -413,55 +379,44 @@ export default function PartnerDashboard() {
             </div>
           )}
 
-          {/* ===== LINK REFERRAL ===== */}
+          {/* LINK REFERRAL */}
           {activeMenu === 'referral' && (
             <div className="fadeUp">
               <div style={{ maxWidth: '600px' }}>
-                {/* Kode Referral */}
                 <div style={{ background: 'linear-gradient(135deg,rgba(129,140,248,0.1),rgba(99,102,241,0.1))', border: '1px solid rgba(129,140,248,0.2)', borderRadius: '20px', padding: '32px', textAlign: 'center', marginBottom: '20px' }}>
                   <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🔗</div>
                   <h2 style={{ fontWeight: 800, fontSize: '1.2rem', marginBottom: '8px' }}>Link & Kode Referral Kamu</h2>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                    Bagikan ke jaringan UMKM kamu dan dapatkan komisi {partner?.komisi_persen || 15}% setiap bulan!
-                  </p>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem', marginBottom: '24px' }}>Bagikan dan dapatkan komisi {partner?.komisi_persen || 15}% setiap bulan!</p>
 
-                  {/* Kode */}
                   <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
                     <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>Kode Referral</div>
-                    <div style={{ fontFamily: 'monospace', fontSize: '1.8rem', fontWeight: 800, letterSpacing: '4px', color: '#818cf8' }}>{referralCode || '-'}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: '1.8rem', fontWeight: 800, letterSpacing: '4px', color: '#818cf8' }}>{partner?.referral_code || '-'}</div>
                   </div>
 
-                  {/* Link */}
                   <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      mahirusaha.com/daftar?ref={referralCode}
-                    </span>
-                    <button className="btn" onClick={() => { navigator.clipboard.writeText(`https://mahirusaha.com/daftar?ref=${referralCode}`); alert('Link disalin!') }} style={{ background: 'rgba(129,140,248,0.2)', border: '1px solid rgba(129,140,248,0.3)', color: '#818cf8', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
-                      📋 Salin
-                    </button>
+                    <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>mahirusaha.com/daftar?ref={partner?.referral_code}</span>
+                    <button className="btn" onClick={() => { navigator.clipboard.writeText(`https://mahirusaha.com/daftar?ref=${partner?.referral_code}`); alert('Link disalin!') }} style={{ background: 'rgba(129,140,248,0.2)', border: '1px solid rgba(129,140,248,0.3)', color: '#818cf8', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>📋 Salin</button>
                   </div>
 
-                  {/* Share buttons */}
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn" onClick={() => { navigator.clipboard.writeText(`https://mahirusaha.com/daftar?ref=${referralCode}`); alert('Link disalin!') }} style={{ flex: 1, padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit' }}>
+                    <button className="btn" onClick={() => { navigator.clipboard.writeText(`https://mahirusaha.com/daftar?ref=${partner?.referral_code}`); alert('Link disalin!') }} style={{ flex: 1, padding: '11px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', fontFamily: 'inherit' }}>
                       📋 Salin Link
                     </button>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`Halo! Mau rekomendasikan platform chatbot WA + toko online gratis untuk UMKM.\n\nMahirusaha bisa bantu bisnis kamu:\n✅ Bot WA otomatis 24 jam\n✅ Toko online gratis\n✅ Mulai Rp 99rb/bulan\n\nDaftar gratis di sini:\nhttps://mahirusaha.com/daftar?ref=${referralCode}`)}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', textAlign: 'center', padding: '11px', borderRadius: '10px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}>
+                    <a href={`https://wa.me/?text=${encodeURIComponent(`Halo! Mau rekomendasikan platform chatbot WA + toko online gratis untuk UMKM.\n\n✅ Bot WA otomatis 24 jam\n✅ Toko online gratis\n✅ Mulai Rp 99rb/bulan\n\nDaftar gratis:\nhttps://mahirusaha.com/daftar?ref=${partner?.referral_code}`)}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', textAlign: 'center', padding: '11px', borderRadius: '10px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}>
                       📤 Share WA
                     </a>
                   </div>
                 </div>
 
-                {/* Tips */}
                 <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '20px' }}>
-                  <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>💡 Tips Referral yang Efektif</h3>
+                  <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>💡 Tips Referral Efektif</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {[
                       { icon: '🎯', tip: 'Target UMKM yang aktif di WhatsApp dan butuh layanan pelanggan 24 jam' },
-                      { icon: '📱', tip: 'Demo langsung bot di +62 813-2531-210 ke calon klien agar mereka lihat sendiri' },
-                      { icon: '🛍️', tip: 'Tunjukkan toko online gratis — ini nilai tambah yang jarang ada di platform lain' },
-                      { icon: '💰', tip: 'Fokus ke bisnis kuliner, fashion, kecantikan — mereka paling banyak tanya via WA' },
-                      { icon: '🤝', tip: 'Tawarkan bantu setup gratis — tim Mahirusaha yang kerjakan, kamu yang dapat komisi' },
+                      { icon: '📱', tip: 'Demo langsung bot di +62 813-2531-210 agar calon klien lihat sendiri' },
+                      { icon: '🛍️', tip: 'Tunjukkan toko online gratis — nilai tambah yang jarang ada di platform lain' },
+                      { icon: '💰', tip: 'Fokus ke bisnis kuliner, fashion, kecantikan — paling banyak tanya via WA' },
+                      { icon: '🤝', tip: 'Bilang "tim Mahirusaha yang bantu setup" — klien tidak perlu repot teknis' },
                     ].map((t, i) => (
                       <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                         <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{t.icon}</span>
