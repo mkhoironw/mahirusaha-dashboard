@@ -200,7 +200,7 @@ export default function AdminDashboard() {
     finally { setSaving(false) }
   }
 
-  const handleApprovePartner = async (partnerId: string, nama: string, nomorWa: string, email: string) => {
+  const handleApprovePartner = async (partnerId: string, nama: string, nomorWa: string, partnerEmail: string) => {
     if (!window.confirm(`Approve partner ${nama}?`)) return
     setApprovingPartner(partnerId)
     try {
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
         await fetch('/api/partner/approve-notif', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nama, nomor_wa: nomorWa, email: app.email })
+          body: JSON.stringify({ nama, nomor_wa: nomorWa, email: partnerEmail })
         })
       } catch {}
 
