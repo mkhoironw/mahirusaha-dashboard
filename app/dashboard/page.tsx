@@ -84,6 +84,9 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [totalProduk, setTotalProduk] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [selectedConv, setSelectedConv] = useState<Conversation | null>(null)
+  const [replyPesan, setReplyPesan] = useState('')
+  const [sendingReply, setSendingReply] = useState(false)
 
   useEffect(() => {
     const session = localStorage.getItem('mahirusaha_client')
@@ -125,7 +128,7 @@ export default function Dashboard() {
           .select('*')
           .eq('store_id', storesData[0].id)
           .order('created_at', { ascending: false })
-          .limit(20)
+          .limit(50)
 
         setConversations(convData || [])
         setUnreadCount((convData || []).filter((c: Conversation) => !c.dibaca).length)
@@ -155,6 +158,54 @@ export default function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem('mahirusaha_client')
     window.location.href = '/masuk'
+  }
+
+  const handleAmbilAlih = async (nomorPelanggan: string) => {
+    if (!activeStore) return
+    await supabase.from('bot_sessions').upsert({
+      store_id: activeStore.id,
+      nomor_pelanggan: nomorPelanggan,
+      human_takeover: true,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'store_id,nomor_pelanggan' })
+    alert(`✅ Bot dinonaktifkan untuk ${nomorPelanggan}. Kamu bisa balas manual sekarang.`)
+  }
+
+  const handleAktifkanBot = async (nomorPelanggan: string) => {
+    if (!activeStore) return
+    await supabase.from('bot_sessions').upsert({
+      store_id: activeStore.id,
+      nomor_pelanggan: nomorPelanggan,
+      human_takeover: false,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'store_id,nomor_pelanggan' })
+    alert(`✅ Bot diaktifkan kembali untuk ${nomorPelanggan}.`)
+  }
+
+  const handleReplyManual = async (nomorPelanggan: string) => {
+    if (!replyPesan.trim() || !activeStore) return
+    setSendingReply(true)
+    try {
+      const response = await fetch('/api/reply-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          store_id: activeStore.id,
+          nomor_pelanggan: nomorPelanggan,
+          pesan: replyPesan,
+        })
+      })
+      if (response.ok) {
+        setReplyPesan('')
+        alert('✅ Pesan berhasil dikirim!')
+      } else {
+        alert('❌ Gagal kirim pesan. Coba lagi.')
+      }
+    } catch {
+      alert('❌ Terjadi kesalahan.')
+    } finally {
+      setSendingReply(false)
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -219,6 +270,7 @@ export default function Dashboard() {
         .btn { transition: opacity 0.2s, transform 0.1s; cursor: pointer; }
         .btn:hover { opacity: 0.85; }
         .btn:active { transform: scale(0.98); }
+        .conv-item:hover { background: rgba(255,255,255,0.04) !important; }
         input, textarea, select { font-family: inherit; }
         input:focus, textarea:focus, select:focus { outline: none; border-color: rgba(37,211,102,0.5) !important; }
       `}</style>
@@ -250,7 +302,7 @@ export default function Dashboard() {
 
         <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto' }}>
           {menuItems.map(item => (
-            <div key={item.id} className="menu-item" onClick={() => setActiveMenu(item.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 10px', borderRadius: '10px', marginBottom: '2px', background: activeMenu === item.id ? 'rgba(37,211,102,0.1)' : 'transparent', border: activeMenu === item.id ? '1px solid rgba(37,211,102,0.2)' : '1px solid transparent', position: 'relative' }}>
+            <div key={item.id} className="menu-item" onClick={() => setActiveMenu(item.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 10px', borderRadius: '10px', marginBottom: '2px', background: activeMenu === item.id ? 'rgba(37,211,102,0.1)' : 'transparent', border: activeMenu === item.id ? '1px solid rgba(37,211,102,0.2)' : '1px solid transparent' }}>
               <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{item.icon}</span>
               {sidebarOpen && (
                 <>
@@ -280,7 +332,6 @@ export default function Dashboard() {
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, overflowY: 'auto', height: '100vh' }}>
-        {/* Top bar */}
         <div style={{ padding: '16px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(7,13,26,0.8)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 10 }}>
           <div>
             <h1 style={{ fontSize: '1.1rem', fontWeight: 700 }}>
@@ -296,21 +347,7 @@ export default function Dashboard() {
               <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>{getPaketLabel(client?.paket || 'trial')}</span>
             </div>
             {(client?.status === 'trial' || client?.status === 'suspend') && (
-              <a
-                href="#"
-                onClick={() => setActiveMenu('langganan')}
-                style={{
-                  background: client?.status === 'suspend'
-                    ? 'linear-gradient(135deg,#EF4444,#B91C1C)'
-                    : 'linear-gradient(135deg,#25d366,#128c7e)',
-                  color: '#fff',
-                  padding: '7px 16px',
-                  borderRadius: '100px',
-                  textDecoration: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.78rem'
-                }}
-              >
+              <a href="#" onClick={() => setActiveMenu('langganan')} style={{ background: client?.status === 'suspend' ? 'linear-gradient(135deg,#EF4444,#B91C1C)' : 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '7px 16px', borderRadius: '100px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>
                 {client?.status === 'suspend' ? 'Perpanjang ↑' : 'Upgrade ↑'}
               </a>
             )}
@@ -322,36 +359,28 @@ export default function Dashboard() {
           {/* ==================== OVERVIEW ==================== */}
           {activeMenu === 'overview' && (
             <div className="fadeUp">
-
-              {/* Banner suspend */}
               {client?.status === 'suspend' && (
                 <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '14px', padding: '16px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <span style={{ fontSize: '1.5rem' }}>🔴</span>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#EF4444', marginBottom: '4px' }}>Akun kamu disuspend</div>
-                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>Masa aktif langganan sudah berakhir. Bot WhatsApp tidak aktif sementara. Perpanjang sekarang untuk mengaktifkan kembali.</div>
+                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>Masa aktif langganan sudah berakhir. Bot WhatsApp tidak aktif sementara.</div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setActiveMenu('langganan')}
-                    style={{ background: 'linear-gradient(135deg,#EF4444,#B91C1C)', color: '#fff', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-                  >
+                  <button onClick={() => setActiveMenu('langganan')} style={{ background: 'linear-gradient(135deg,#EF4444,#B91C1C)', color: '#fff', padding: '10px 20px', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                     Perpanjang Sekarang →
                   </button>
                 </div>
               )}
 
-              {/* Kuota warning */}
               {kuotaWarning && (
                 <div style={{ background: 'rgba(239,159,39,0.1)', border: '1px solid rgba(239,159,39,0.3)', borderRadius: '14px', padding: '14px 18px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <span style={{ fontSize: '1.2rem' }}>⚠️</span>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#EF9F27' }}>Kuota hampir habis!</div>
-                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
-                        {activeStore?.pesan_terpakai} dari {activeStore?.is_trial ? activeStore.trial_pesan_limit : activeStore?.batas_pesan_bulan} pesan terpakai ({kuotaPersen}%)
-                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>{activeStore?.pesan_terpakai} dari {activeStore?.is_trial ? activeStore.trial_pesan_limit : activeStore?.batas_pesan_bulan} pesan terpakai ({kuotaPersen}%)</div>
                     </div>
                   </div>
                   <button onClick={() => setActiveMenu('langganan')} className="btn" style={{ background: '#EF9F27', color: '#070d1a', padding: '8px 16px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
@@ -360,7 +389,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Onboarding progress */}
               {onboarding && onboarding.persen_selesai < 100 && (
                 <div style={{ background: 'rgba(37,211,102,0.06)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '16px', padding: '18px 20px', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -388,7 +416,6 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Stats cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '24px' }}>
                 {[
                   { icon: '💬', label: 'Pesan Terpakai', value: `${activeStore?.pesan_terpakai || 0}`, sub: `dari ${activeStore?.is_trial ? activeStore.trial_pesan_limit : activeStore?.batas_pesan_bulan || 0}`, color: '#25d366', progress: kuotaPersen },
@@ -413,10 +440,7 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Grid 2 kolom */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '16px' }}>
-
-                {/* Kolom kiri - Percakapan Terbaru */}
                 <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontWeight: 700, fontSize: '0.9rem' }}>💬 Percakapan Terbaru</h3>
@@ -426,7 +450,6 @@ export default function Dashboard() {
                     <div style={{ padding: '40px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
                       <div style={{ fontSize: '2rem', marginBottom: '10px' }}>💬</div>
                       <p style={{ fontSize: '0.85rem' }}>Belum ada percakapan</p>
-                      <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Bot siap menerima pesan dari pelanggan</p>
                     </div>
                   ) : (
                     conversations.slice(0, 6).map((conv, i) => (
@@ -445,49 +468,21 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Kolom kanan */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-                  {/* Link Toko Online */}
                   {activeStore?.slug && (
                     <div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.15)', borderRadius: '16px', padding: '18px' }}>
                       <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '12px' }}>🛍️ Link Toko Online Kamu</h3>
                       <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px' }}>
-                        <span style={{ fontSize: '0.78rem', color: '#25d366', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          mahirusaha.com/{activeStore.slug}
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`https://mahirusaha.com/${activeStore.slug}`)
-                            alert('Link toko berhasil disalin!')
-                          }}
-                          style={{ background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}
-                        >
-                          📋 Salin
-                        </button>
+                        <span style={{ fontSize: '0.78rem', color: '#25d366', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>mahirusaha.com/{activeStore.slug}</span>
+                        <button onClick={() => { navigator.clipboard.writeText(`https://mahirusaha.com/${activeStore.slug}`); alert('Link toko berhasil disalin!') }} style={{ background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '5px 10px', borderRadius: '6px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>📋 Salin</button>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <a
-                          href={`https://mahirusaha.com/${activeStore.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ flex: 1, display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}
-                        >
-                          🔗 Buka Toko
-                        </a>
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent(`Yuk belanja di toko kami! https://mahirusaha.com/${activeStore.slug}`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ flex: 1, display: 'block', textAlign: 'center', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}
-                        >
-                          📤 Share WA
-                        </a>
+                        <a href={`https://mahirusaha.com/${activeStore.slug}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', textAlign: 'center', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>🔗 Buka Toko</a>
+                        <a href={`https://wa.me/?text=${encodeURIComponent(`Yuk belanja di toko kami! https://mahirusaha.com/${activeStore.slug}`)}`} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'block', textAlign: 'center', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '9px', borderRadius: '8px', textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem' }}>📤 Share WA</a>
                       </div>
                     </div>
                   )}
 
-                  {/* Aksi Cepat */}
                   <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '18px' }}>
                     <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>⚡ Aksi Cepat</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -506,7 +501,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Info Toko */}
                   {activeStore && (
                     <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '18px' }}>
                       <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '14px' }}>🏪 Info Toko</h3>
@@ -525,7 +519,6 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-
                 </div>
               </div>
             </div>
@@ -534,35 +527,118 @@ export default function Dashboard() {
           {/* ==================== PERCAKAPAN ==================== */}
           {activeMenu === 'percakapan' && (
             <div className="fadeUp">
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '16px' }}>
+
+                {/* Kolom kiri - Daftar Percakapan */}
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                     <h3 style={{ fontWeight: 700, fontSize: '0.9rem' }}>Semua Percakapan</h3>
                     <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{conversations.length} percakapan · {unreadCount} belum dibaca</p>
                   </div>
-                </div>
-                {conversations.length === 0 ? (
-                  <div style={{ padding: '60px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</div>
-                    <p style={{ fontWeight: 600, marginBottom: '6px' }}>Belum ada percakapan</p>
-                    <p style={{ fontSize: '0.85rem' }}>Bot siap menerima pesan dari pelanggan kamu</p>
-                  </div>
-                ) : (
-                  conversations.map((conv, i) => (
-                    <div key={i} style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'grid', gridTemplateColumns: '40px 1fr 1fr auto', gap: '12px', alignItems: 'center', background: !conv.dibaca ? 'rgba(37,211,102,0.02)' : 'transparent' }}>
-                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>👤</div>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: '3px' }}>{conv.nomor_pelanggan}</div>
-                        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📥 {conv.pesan_masuk}</div>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🤖 {conv.pesan_keluar}</div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>{new Date(conv.created_at).toLocaleDateString('id-ID')}</div>
-                        {!conv.dibaca && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#25d366', marginLeft: 'auto', marginTop: '4px' }}/>}
-                      </div>
+                  {conversations.length === 0 ? (
+                    <div style={{ padding: '60px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: '16px' }}>💬</div>
+                      <p style={{ fontWeight: 600, marginBottom: '6px' }}>Belum ada percakapan</p>
+                      <p style={{ fontSize: '0.85rem' }}>Bot siap menerima pesan dari pelanggan kamu</p>
                     </div>
-                  ))
-                )}
+                  ) : (
+                    conversations.map((conv, i) => (
+                      <div
+                        key={i}
+                        className="conv-item"
+                        onClick={() => setSelectedConv(conv)}
+                        style={{ padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '12px', alignItems: 'flex-start', background: selectedConv?.id === conv.id ? 'rgba(37,211,102,0.06)' : !conv.dibaca ? 'rgba(37,211,102,0.02)' : 'transparent', cursor: 'pointer', borderLeft: selectedConv?.id === conv.id ? '3px solid #25d366' : '3px solid transparent', transition: 'all 0.15s' }}
+                      >
+                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>👤</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>{conv.nomor_pelanggan}</span>
+                            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>{new Date(conv.created_at).toLocaleDateString('id-ID')}</span>
+                          </div>
+                          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>📥 {conv.pesan_masuk}</p>
+                          <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>🤖 {conv.pesan_keluar}</p>
+                        </div>
+                        {!conv.dibaca && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#25d366', flexShrink: 0, marginTop: '4px' }}/>}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Kolom kanan - Detail & Aksi */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {selectedConv ? (
+                    <>
+                      {/* Detail percakapan */}
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '16px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', paddingBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>👤</div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{selectedConv.nomor_pelanggan}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{new Date(selectedConv.created_at).toLocaleString('id-ID')}</div>
+                          </div>
+                        </div>
+                        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 14px', marginBottom: '8px' }}>
+                          <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginBottom: '4px', fontWeight: 600 }}>📥 PESAN PELANGGAN</div>
+                          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>{selectedConv.pesan_masuk}</p>
+                        </div>
+                        <div style={{ background: 'rgba(37,211,102,0.05)', border: '1px solid rgba(37,211,102,0.1)', borderRadius: '10px', padding: '10px 14px' }}>
+                          <div style={{ fontSize: '0.65rem', color: '#25d366', marginBottom: '4px', fontWeight: 600 }}>🤖 BALASAN BOT</div>
+                          <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>{selectedConv.pesan_keluar}</p>
+                        </div>
+                      </div>
+
+                      {/* Human Takeover */}
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '16px 20px' }}>
+                        <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '8px' }}>👤 Human Takeover</h3>
+                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', lineHeight: 1.6 }}>
+                          Ambil alih percakapan — bot berhenti menjawab dan kamu bisa balas manual dari sini.
+                        </p>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleAmbilAlih(selectedConv.nomor_pelanggan)}
+                            className="btn"
+                            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#EF9F27,#d97706)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            👤 Ambil Alih
+                          </button>
+                          <button
+                            onClick={() => handleAktifkanBot(selectedConv.nomor_pelanggan)}
+                            className="btn"
+                            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}
+                          >
+                            🤖 Aktifkan Bot
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Form Reply */}
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '16px 20px' }}>
+                        <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '10px' }}>✏️ Balas Manual</h3>
+                        <textarea
+                          value={replyPesan}
+                          onChange={e => setReplyPesan(e.target.value)}
+                          placeholder="Ketik balasan untuk pelanggan..."
+                          rows={4}
+                          style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '12px', borderRadius: '10px', fontSize: '0.82rem', fontFamily: 'inherit', resize: 'none', outline: 'none', marginBottom: '10px' }}
+                        />
+                        <button
+                          onClick={() => handleReplyManual(selectedConv.nomor_pelanggan)}
+                          disabled={!replyPesan.trim() || sendingReply}
+                          className="btn"
+                          style={{ width: '100%', padding: '11px', borderRadius: '10px', border: 'none', background: !replyPesan.trim() || sendingReply ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: !replyPesan.trim() || sendingReply ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: !replyPesan.trim() || sendingReply ? 0.5 : 1 }}
+                        >
+                          {sendingReply ? '⏳ Mengirim...' : '📤 Kirim Balasan'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '16px', padding: '48px 20px', textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
+                      <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>👈</div>
+                      <p style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '6px' }}>Pilih percakapan</p>
+                      <p style={{ fontSize: '0.78rem' }}>Klik percakapan di kiri untuk melihat detail dan membalas</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -577,31 +653,21 @@ export default function Dashboard() {
           {/* ==================== BROADCAST ==================== */}
           {activeMenu === 'broadcast' && activeStore && client && (
             <div className="fadeUp">
-              <BroadcastPage
-                storeId={activeStore.id}
-                clientId={client.id}
-                clientPaket={client.paket}
-              />
+              <BroadcastPage storeId={activeStore.id} clientId={client.id} clientPaket={client.paket} />
             </div>
           )}
 
           {/* ==================== ANALYTICS ==================== */}
           {activeMenu === 'analytics' && activeStore && client && (
             <div className="fadeUp">
-              <AnalyticsPage
-                storeId={activeStore.id}
-                clientPaket={client.paket}
-              />
+              <AnalyticsPage storeId={activeStore.id} clientPaket={client.paket} />
             </div>
           )}
 
           {/* ==================== CRM ==================== */}
           {activeMenu === 'crm' && activeStore && client && (
             <div className="fadeUp">
-              <CRMPage
-                storeId={activeStore.id}
-                clientPaket={client.paket}
-              />
+              <CRMPage storeId={activeStore.id} clientPaket={client.paket} />
             </div>
           )}
 
@@ -655,10 +721,7 @@ export default function Dashboard() {
           {/* ==================== PENGATURAN TOKO ==================== */}
           {activeMenu === 'pengaturan-toko' && activeStore && (
             <div className="fadeUp">
-              <PengaturanToko
-                store={activeStore}
-                onUpdate={(updatedStore) => setActiveStore(updatedStore)}
-              />
+              <PengaturanToko store={activeStore} onUpdate={(updatedStore) => setActiveStore(updatedStore)} />
             </div>
           )}
 
