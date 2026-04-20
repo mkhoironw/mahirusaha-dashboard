@@ -23,8 +23,6 @@ interface Client {
   tanggal_berakhir: string
   nomor_wa_pemilik: string
   created_at: string
-  is_partner: boolean
-  komisi_persen: number
 }
 
 interface Store {
@@ -51,19 +49,7 @@ interface EnterpriseLead {
   created_at: string
 }
 
-interface PartnerKomisi {
-  id: string
-  partner_client_id: string
-  referred_client_id: string
-  jumlah_komisi: number
-  bulan: number
-  tahun: number
-  status: string
-  tanggal_dibayar: string
-  created_at: string
-}
-
-interface PartnerApplication {
+interface Partner {
   id: string
   nama_lengkap: string
   email: string
@@ -76,6 +62,19 @@ interface PartnerApplication {
   referral_code: string
   komisi_persen: number
   status: string
+  total_komisi: number
+  created_at: string
+}
+
+interface PartnerKomisi {
+  id: string
+  partner_id: string
+  referred_client_id: string
+  jumlah_komisi: number
+  bulan: number
+  tahun: number
+  status: string
+  tanggal_dibayar: string
   created_at: string
 }
 
@@ -86,13 +85,12 @@ export default function AdminDashboard() {
   const [clients, setClients] = useState<Client[]>([])
   const [stores, setStores] = useState<Store[]>([])
   const [leads, setLeads] = useState<EnterpriseLead[]>([])
+  const [partners, setPartners] = useState<Partner[]>([])
   const [komisiList, setKomisiList] = useState<PartnerKomisi[]>([])
-  const [partnerApplications, setPartnerApplications] = useState<PartnerApplication[]>([])
   const [stats, setStats] = useState({
     totalKlien: 0, klienAktif: 0, klienTrial: 0,
-    totalToko: 0, tokoAktif: 0, totalLeads: 0,
-    mrr: 0, totalPartner: 0, totalKomisiPending: 0,
-    pendaftarPartner: 0,
+    totalToko: 0, tokoAktif: 0,
+    mrr: 0, partnerAktif: 0, pendaftarBaru: 0, totalKomisiPending: 0,
   })
   const [editingStore, setEditingStore] = useState<string | null>(null)
   const [newNomorWA, setNewNomorWA] = useState('')
@@ -100,9 +98,9 @@ export default function AdminDashboard() {
   const [searchKlien, setSearchKlien] = useState('')
   const [filterStatus, setFilterStatus] = useState('semua')
   const [sendingEmail, setSendingEmail] = useState<string | null>(null)
-  const [editingPartner, setEditingPartner] = useState<string | null>(null)
+  const [partnerTab, setPartnerTab] = useState<'pendaftar' | 'aktif'>('pendaftar')
+  const [editingKomisi, setEditingKomisi] = useState<string | null>(null)
   const [newKomisiPersen, setNewKomisiPersen] = useState(15)
-  const [partnerTab, setPartnerTab] = useState<'aktif' | 'pendaftar'>('pendaftar')
   const [approvingPartner, setApprovingPartner] = useState<string | null>(null)
 
   useEffect(() => {
@@ -115,23 +113,31 @@ export default function AdminDashboard() {
   const loadAllData = async () => {
     setLoading(true)
     try {
-      const { data: clientsData } = await supabase.from('clients').select('*').order('created_at', { ascending: false })
-      const { data: storesData } = await supabase.from('stores').select('*').order('created_at', { ascending: false })
-      const { data: leadsData } = await supabase.from('enterprise_leads').select('*').order('created_at', { ascending: false })
-      const { data: komisiData } = await supabase.from('partner_komisi').select('*').order('created_at', { ascending: false })
-      const { data: partnerAppsData } = await supabase.from('partners').select('*').order('created_at', { ascending: false })
+      const [
+        { data: clientsData },
+        { data: storesData },
+        { data: leadsData },
+        { data: partnersData },
+        { data: komisiData },
+      ] = await Promise.all([
+        supabase.from('clients').select('*').order('created_at', { ascending: false }),
+        supabase.from('stores').select('*').order('created_at', { ascending: false }),
+        supabase.from('enterprise_leads').select('*').order('created_at', { ascending: false }),
+        supabase.from('partners').select('*').order('created_at', { ascending: false }),
+        supabase.from('partner_komisi').select('*').order('created_at', { ascending: false }),
+      ])
 
       const c = clientsData || []
       const s = storesData || []
       const l = leadsData || []
+      const p = partnersData || []
       const k = komisiData || []
-      const pa = partnerAppsData || []
 
       setClients(c)
       setStores(s)
       setLeads(l)
+      setPartners(p)
       setKomisiList(k)
-      setPartnerApplications(pa)
 
       const hargaPaket: Record<string, number> = { starter: 99000, pro: 299000, bisnis: 699000 }
       const mrr = c.filter(cl => cl.status === 'aktif').reduce((sum, cl) => sum + (hargaPaket[cl.paket] || 0), 0)
@@ -143,11 +149,10 @@ export default function AdminDashboard() {
         klienTrial: c.filter(cl => cl.status === 'trial').length,
         totalToko: s.length,
         tokoAktif: s.filter(st => st.aktif).length,
-        totalLeads: l.length,
         mrr,
-        totalPartner: pa.filter(p => p.status === 'aktif').length,
+        partnerAktif: p.filter(pt => pt.status === 'aktif').length,
+        pendaftarBaru: p.filter(pt => pt.status === 'pending').length,
         totalKomisiPending,
-        pendaftarPartner: pa.filter(p => p.status === 'pending').length,
       })
     } catch (err) {
       console.error(err)
@@ -161,18 +166,6 @@ export default function AdminDashboard() {
     window.location.href = '/admin'
   }
 
-  const handleUpdateNomorWA = async (storeId: string) => {
-    if (!newNomorWA.trim()) return
-    setSaving(true)
-    try {
-      await supabase.from('stores').update({ nomor_wa_toko: newNomorWA, updated_at: new Date().toISOString() }).eq('id', storeId)
-      setStores(prev => prev.map(s => s.id === storeId ? { ...s, nomor_wa_toko: newNomorWA } : s))
-      setEditingStore(null)
-      setNewNomorWA('')
-    } catch (err) { console.error(err) }
-    finally { setSaving(false) }
-  }
-
   const handleSuspendKlien = async (clientId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'suspend' ? 'trial' : 'suspend'
     if (!window.confirm(`${newStatus === 'suspend' ? 'Suspend' : 'Aktifkan kembali'} klien ini?`)) return
@@ -181,83 +174,70 @@ export default function AdminDashboard() {
   }
 
   const handleKirimNotifBotAktif = async (clientId: string, nama: string, email: string) => {
-    if (!window.confirm(`Kirim email "Bot Aktif" ke ${nama} (${email})?`)) return
+    if (!window.confirm(`Kirim email "Bot Aktif" ke ${nama}?`)) return
     setSendingEmail(clientId)
     try {
-      const response = await fetch('/api/email/bot-aktif', {
+      const res = await fetch('/api/email/bot-aktif', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ client_id: clientId, nama, email })
       })
-      if (response.ok) alert(`✅ Email "Bot Aktif" berhasil dikirim ke ${email}`)
+      if (res.ok) alert(`✅ Email berhasil dikirim ke ${email}`)
       else alert('❌ Gagal kirim email.')
     } catch { alert('❌ Terjadi kesalahan.') }
     finally { setSendingEmail(null) }
   }
 
-  const handleTogglePartner = async (clientId: string, isPartner: boolean) => {
-    const action = isPartner ? 'Nonaktifkan' : 'Aktifkan'
-    if (!window.confirm(`${action} status partner untuk klien ini?`)) return
-    await supabase.from('clients').update({ is_partner: !isPartner }).eq('id', clientId)
-    setClients(prev => prev.map(c => c.id === clientId ? { ...c, is_partner: !isPartner } : c))
-  }
-
-  const handleUpdateKomisi = async (clientId: string) => {
+  const handleUpdateNomorWA = async (storeId: string) => {
+    if (!newNomorWA.trim()) return
     setSaving(true)
     try {
-      await supabase.from('clients').update({ komisi_persen: newKomisiPersen }).eq('id', clientId)
-      setClients(prev => prev.map(c => c.id === clientId ? { ...c, komisi_persen: newKomisiPersen } : c))
-      setEditingPartner(null)
-      alert(`✅ Komisi berhasil diupdate ke ${newKomisiPersen}%`)
-    } catch { alert('❌ Gagal update komisi.') }
+      await supabase.from('stores').update({ nomor_wa_toko: newNomorWA }).eq('id', storeId)
+      setStores(prev => prev.map(s => s.id === storeId ? { ...s, nomor_wa_toko: newNomorWA } : s))
+      setEditingStore(null)
+      setNewNomorWA('')
+    } catch (err) { console.error(err) }
     finally { setSaving(false) }
   }
 
-  const handleUpdateKomisiPartner = async (partnerId: string) => {
-    setSaving(true)
-    try {
-      await supabase.from('partners').update({ komisi_persen: newKomisiPersen }).eq('id', partnerId)
-      setPartnerApplications(prev => prev.map(p => p.id === partnerId ? { ...p, komisi_persen: newKomisiPersen } : p))
-      setEditingPartner(null)
-      alert(`✅ Komisi berhasil diupdate ke ${newKomisiPersen}%`)
-    } catch { alert('❌ Gagal update komisi.') }
-    finally { setSaving(false) }
-  }
-
-  const handleApprovePartner = async (partnerId: string, nama: string, email: string, nomorWa: string) => {
-    if (!window.confirm(`Approve pendaftaran partner dari ${nama}?`)) return
+  const handleApprovePartner = async (partnerId: string, nama: string, nomorWa: string) => {
+    if (!window.confirm(`Approve partner ${nama}?`)) return
     setApprovingPartner(partnerId)
     try {
       await supabase.from('partners').update({ status: 'aktif', updated_at: new Date().toISOString() }).eq('id', partnerId)
-      setPartnerApplications(prev => prev.map(p => p.id === partnerId ? { ...p, status: 'aktif' } : p))
+      setPartners(prev => prev.map(p => p.id === partnerId ? { ...p, status: 'aktif' } : p))
+      setStats(prev => ({ ...prev, partnerAktif: prev.partnerAktif + 1, pendaftarBaru: Math.max(0, prev.pendaftarBaru - 1) }))
 
-      // Kirim notif WA ke partner
-      await fetch(`https://graph.facebook.com/v22.0/${process.env.NEXT_PUBLIC_PHONE_NUMBER_ID}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_WHATSAPP_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: nomorWa,
-          type: 'text',
-          text: { body: `🎉 *Selamat ${nama}!*\n\nPendaftaran partner Mahirusaha kamu telah *DIAPPROVE*!\n\nKamu sekarang bisa login ke dashboard partner:\nmahirusaha.com/partner/masuk\n\nGunakan email dan password yang kamu daftarkan.\n\nSelamat bergabung dan semangat referral! 💪\n\n— Tim Mahirusaha` }
-        }),
-      }).catch(() => {})
+      // Notif WA ke partner
+      try {
+        await fetch('/api/partner/approve-notif', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nama, nomor_wa: nomorWa })
+        })
+      } catch {}
 
-      setStats(prev => ({ ...prev, totalPartner: prev.totalPartner + 1, pendaftarPartner: prev.pendaftarPartner - 1 }))
-      alert(`✅ Partner ${nama} berhasil diapprove! Notif WA sudah dikirim.`)
-    } catch { alert('❌ Gagal approve partner.') }
+      alert(`✅ ${nama} berhasil diapprove! Notif WA dikirim.`)
+    } catch { alert('❌ Gagal approve.') }
     finally { setApprovingPartner(null) }
   }
 
   const handleTolakPartner = async (partnerId: string, nama: string) => {
-    if (!window.confirm(`Tolak pendaftaran partner dari ${nama}?`)) return
+    if (!window.confirm(`Tolak pendaftaran ${nama}?`)) return
     await supabase.from('partners').update({ status: 'ditolak', updated_at: new Date().toISOString() }).eq('id', partnerId)
-    setPartnerApplications(prev => prev.map(p => p.id === partnerId ? { ...p, status: 'ditolak' } : p))
-    setStats(prev => ({ ...prev, pendaftarPartner: Math.max(0, prev.pendaftarPartner - 1) }))
-    alert(`Partner ${nama} ditolak.`)
+    setPartners(prev => prev.map(p => p.id === partnerId ? { ...p, status: 'ditolak' } : p))
+    setStats(prev => ({ ...prev, pendaftarBaru: Math.max(0, prev.pendaftarBaru - 1) }))
+  }
+
+  const handleUpdateKomisi = async (partnerId: string) => {
+    setSaving(true)
+    try {
+      await supabase.from('partners').update({ komisi_persen: newKomisiPersen }).eq('id', partnerId)
+      setPartners(prev => prev.map(p => p.id === partnerId ? { ...p, komisi_persen: newKomisiPersen } : p))
+      setEditingKomisi(null)
+      alert(`✅ Komisi diupdate ke ${newKomisiPersen}%`)
+    } catch { alert('❌ Gagal update komisi.') }
+    finally { setSaving(false) }
   }
 
   const handleBayarKomisi = async (komisiId: string) => {
@@ -272,6 +252,11 @@ export default function AdminDashboard() {
   }
 
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
+  const namaBulan = (b: number) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][b - 1]
+
+  const getStatusColor = (s: string) => ({ aktif: '#25d366', trial: '#EF9F27', suspend: '#EF4444' }[s] || '#888')
+  const getStatusLabel = (s: string) => ({ aktif: 'Aktif', trial: 'Trial', suspend: 'Suspend' }[s] || s)
+  const getPaketLabel = (p: string) => ({ starter: 'Starter', pro: 'Pro', bisnis: 'Bisnis', enterprise: 'Enterprise', trial: 'Trial' }[p] || p)
 
   const filteredClients = clients.filter(c => {
     const matchSearch = c.nama_pemilik.toLowerCase().includes(searchKlien.toLowerCase()) || c.email.toLowerCase().includes(searchKlien.toLowerCase())
@@ -279,41 +264,23 @@ export default function AdminDashboard() {
     return matchSearch && matchStatus
   })
 
-  const partners = clients.filter(c => c.is_partner)
-  const activePartners = partnerApplications.filter(p => p.status === 'aktif')
-  const pendingPartners = partnerApplications.filter(p => p.status === 'pending')
+  const pendingPartners = partners.filter(p => p.status === 'pending')
+  const activePartners = partners.filter(p => p.status === 'aktif')
+  const rejectedPartners = partners.filter(p => p.status === 'ditolak')
 
   const menuItems = [
     { id: 'overview', icon: '📊', label: 'Overview' },
     { id: 'klien', icon: '👥', label: 'Klien' },
-    { id: 'partner', icon: '🤝', label: 'Partner', badge: stats.pendaftarPartner },
+    { id: 'partner', icon: '🤝', label: 'Partner', badge: stats.pendaftarBaru },
     { id: 'toko', icon: '🏪', label: 'Toko' },
     { id: 'leads', icon: '📋', label: 'Enterprise Leads' },
     { id: 'revenue', icon: '💰', label: 'Revenue' },
   ]
 
-  const getStatusColor = (status: string) => {
-    if (status === 'aktif') return '#25d366'
-    if (status === 'trial') return '#EF9F27'
-    if (status === 'suspend') return '#EF4444'
-    return '#888'
-  }
-
-  const getStatusLabel = (status: string) => {
-    const map: Record<string, string> = { aktif: 'Aktif', trial: 'Trial', suspend: 'Suspend', nonaktif: 'Nonaktif' }
-    return map[status] || status
-  }
-
-  const getPaketLabel = (paket: string) => {
-    const map: Record<string, string> = { starter: 'Starter', pro: 'Pro', bisnis: 'Bisnis', enterprise: 'Enterprise', trial: 'Trial' }
-    return map[paket] || paket
-  }
-
-  const namaBulan = (bulan: number) => ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'][bulan - 1]
-
   if (loading) {
     return (
       <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", background: '#070d1a', color: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap'); * { box-sizing: border-box; margin: 0; padding: 0; }`}</style>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⚙️</div>
           <p style={{ color: 'rgba(255,255,255,0.4)' }}>Memuat dashboard admin...</p>
@@ -334,8 +301,8 @@ export default function AdminDashboard() {
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
         .fadeUp { animation: fadeUp 0.4s ease forwards; }
         .menu-item:hover { background: rgba(255,255,255,0.05) !important; }
-        .btn-action { transition: opacity 0.2s; }
-        .btn-action:hover { opacity: 0.8; }
+        .btn-a { transition: opacity 0.2s; cursor: pointer; }
+        .btn-a:hover { opacity: 0.8; }
       `}</style>
 
       {/* SIDEBAR */}
@@ -352,9 +319,7 @@ export default function AdminDashboard() {
             <div key={item.id} className="menu-item" onClick={() => setActiveMenu(item.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', marginBottom: '2px', cursor: 'pointer', background: activeMenu === item.id ? 'rgba(37,211,102,0.1)' : 'transparent', border: activeMenu === item.id ? '1px solid rgba(37,211,102,0.2)' : '1px solid transparent' }}>
               <span style={{ fontSize: '1rem' }}>{item.icon}</span>
               <span style={{ fontSize: '0.875rem', fontWeight: activeMenu === item.id ? 600 : 500, color: activeMenu === item.id ? '#25d366' : 'rgba(255,255,255,0.65)', flex: 1 }}>{item.label}</span>
-              {item.badge && item.badge > 0 && (
-                <div style={{ background: '#EF4444', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '100px', minWidth: '18px', textAlign: 'center' }}>{item.badge}</div>
-              )}
+              {item.badge && item.badge > 0 ? <div style={{ background: '#EF4444', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '2px 6px', borderRadius: '100px', minWidth: '18px', textAlign: 'center' }}>{item.badge}</div> : null}
             </div>
           ))}
         </nav>
@@ -369,20 +334,16 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN */}
       <div style={{ flex: 1, overflowY: 'auto', height: '100vh' }}>
         <div style={{ padding: '16px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(7,13,26,0.8)', backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 10 }}>
-          <h1 style={{ fontSize: '1rem', fontWeight: 700 }}>
-            {menuItems.find(m => m.id === activeMenu)?.icon} {menuItems.find(m => m.id === activeMenu)?.label}
-            {activeMenu === 'partner' && stats.pendaftarPartner > 0 && (
-              <span style={{ marginLeft: '10px', background: '#EF4444', color: '#fff', fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '100px' }}>
-                {stats.pendaftarPartner} pendaftar baru
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h1 style={{ fontSize: '1rem', fontWeight: 700 }}>{menuItems.find(m => m.id === activeMenu)?.icon} {menuItems.find(m => m.id === activeMenu)?.label}</h1>
+            {activeMenu === 'partner' && stats.pendaftarBaru > 0 && (
+              <span style={{ background: '#EF4444', color: '#fff', fontSize: '0.7rem', fontWeight: 700, padding: '2px 10px', borderRadius: '100px' }}>{stats.pendaftarBaru} menunggu review</span>
             )}
-          </h1>
-          <button onClick={loadAllData} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem' }}>
-            🔄 Refresh
-          </button>
+          </div>
+          <button onClick={loadAllData} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem' }}>🔄 Refresh</button>
         </div>
 
         <div style={{ padding: '24px 28px' }}>
@@ -390,51 +351,53 @@ export default function AdminDashboard() {
           {/* ===== OVERVIEW ===== */}
           {activeMenu === 'overview' && (
             <div className="fadeUp">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '16px' }}>
                 {[
                   { label: 'Total Klien', value: stats.totalKlien, icon: '👥', color: '#25d366' },
                   { label: 'Klien Aktif', value: stats.klienAktif, icon: '✅', color: '#25d366' },
                   { label: 'Klien Trial', value: stats.klienTrial, icon: '🎯', color: '#EF9F27' },
                   { label: 'MRR', value: fmt(stats.mrr), icon: '💰', color: '#25d366' },
-                ].map(stat => (
-                  <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px' }}>
-                    <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{stat.icon}</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: stat.color, marginBottom: '2px' }}>{stat.value}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{stat.label}</div>
+                ].map(s => (
+                  <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px' }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{s.icon}</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, marginBottom: '2px' }}>{s.value}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{s.label}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '28px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '24px' }}>
                 {[
                   { label: 'Total Toko', value: stats.totalToko, icon: '🏪', color: '#fff' },
                   { label: 'Toko Aktif', value: stats.tokoAktif, icon: '🟢', color: '#25d366' },
-                  { label: 'Partner Aktif', value: stats.totalPartner, icon: '🤝', color: '#818cf8' },
+                  { label: 'Partner Aktif', value: stats.partnerAktif, icon: '🤝', color: '#818cf8' },
                   { label: 'Komisi Pending', value: fmt(stats.totalKomisiPending), icon: '⏳', color: '#EF9F27' },
-                ].map(stat => (
-                  <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px' }}>
-                    <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{stat.icon}</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: stat.color, marginBottom: '2px' }}>{stat.value}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{stat.label}</div>
+                ].map(s => (
+                  <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '18px' }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{s.icon}</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, marginBottom: '2px' }}>{s.value}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{s.label}</div>
                   </div>
                 ))}
               </div>
-              {stats.pendaftarPartner > 0 && (
+
+              {stats.pendaftarBaru > 0 && (
                 <div style={{ background: 'rgba(129,140,248,0.08)', border: '1px solid rgba(129,140,248,0.2)', borderRadius: '14px', padding: '14px 20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <span style={{ fontSize: '1.2rem' }}>🤝</span>
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#818cf8' }}>{stats.pendaftarPartner} pendaftar partner baru menunggu review</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#818cf8' }}>{stats.pendaftarBaru} pendaftar partner baru menunggu review</div>
                       <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Review dan approve di menu Partner</div>
                     </div>
                   </div>
-                  <button onClick={() => setActiveMenu('partner')} style={{ background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', padding: '8px 16px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  <button onClick={() => { setActiveMenu('partner'); setPartnerTab('pendaftar') }} style={{ background: 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', padding: '8px 16px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                     Review Sekarang →
                   </button>
                 </div>
               )}
+
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '20px' }}>
                 <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '16px' }}>👥 Klien Terbaru</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {clients.slice(0, 5).map(c => (
                     <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px' }}>
                       <div>
@@ -442,7 +405,6 @@ export default function AdminDashboard() {
                         <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{c.email}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        {c.is_partner && <span style={{ fontSize: '0.68rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>Partner {c.komisi_persen}%</span>}
                         <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '100px' }}>{getPaketLabel(c.paket)}</span>
                         <span style={{ fontSize: '0.72rem', color: getStatusColor(c.status), fontWeight: 600 }}>{getStatusLabel(c.status)}</span>
                       </div>
@@ -459,43 +421,35 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 <input style={{ flex: 1, minWidth: '200px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="🔍 Cari nama atau email..." value={searchKlien} onChange={e => setSearchKlien(e.target.value)} />
                 <select style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '10px 14px', borderRadius: '10px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-                  {['semua', 'aktif', 'trial', 'suspend'].map(s => (
-                    <option key={s} value={s} style={{ background: '#111827' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                  ))}
+                  {['semua','aktif','trial','suspend'].map(s => <option key={s} value={s} style={{ background: '#111827' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                 </select>
               </div>
               <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px' }}>{filteredClients.length} klien ditemukan</div>
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 2fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1.5fr', gap: '12px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   <span>Nama</span><span>Email</span><span>Paket</span><span>Status</span><span>Bergabung</span><span>Aksi</span>
                 </div>
                 {filteredClients.map((c, i) => (
-                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 2fr', gap: '12px', padding: '14px 16px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
+                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1.5fr', gap: '12px', padding: '14px 16px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{c.nama_pemilik}</div>
                       <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>{c.nomor_wa_pemilik || '-'}</div>
-                      {c.is_partner && <span style={{ fontSize: '0.65rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '1px 6px', borderRadius: '100px', fontWeight: 600 }}>Partner {c.komisi_persen}%</span>}
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
                     <div><span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.06)', padding: '3px 8px', borderRadius: '100px' }}>{getPaketLabel(c.paket)}</span></div>
                     <div style={{ fontSize: '0.78rem', color: getStatusColor(c.status), fontWeight: 600 }}>{getStatusLabel(c.status)}</div>
                     <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{new Date(c.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}</div>
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      <button className="btn-action" onClick={() => handleSuspendKlien(c.id, c.status)} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: `1px solid ${c.status === 'suspend' ? 'rgba(37,211,102,0.3)' : 'rgba(239,68,68,0.3)'}`, background: 'transparent', color: c.status === 'suspend' ? '#25d366' : '#EF4444', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      <button className="btn-a" onClick={() => handleSuspendKlien(c.id, c.status)} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: `1px solid ${c.status === 'suspend' ? 'rgba(37,211,102,0.3)' : 'rgba(239,68,68,0.3)'}`, background: 'transparent', color: c.status === 'suspend' ? '#25d366' : '#EF4444', cursor: 'pointer', fontFamily: 'inherit' }}>
                         {c.status === 'suspend' ? 'Aktifkan' : 'Suspend'}
                       </button>
-                      <button className="btn-action" onClick={() => handleKirimNotifBotAktif(c.id, c.nama_pemilik, c.email)} disabled={sendingEmail === c.id} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', opacity: sendingEmail === c.id ? 0.5 : 1 }}>
+                      <button className="btn-a" onClick={() => handleKirimNotifBotAktif(c.id, c.nama_pemilik, c.email)} disabled={sendingEmail === c.id} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', opacity: sendingEmail === c.id ? 0.5 : 1 }}>
                         {sendingEmail === c.id ? '⏳' : '📧 Bot Aktif'}
-                      </button>
-                      <button className="btn-action" onClick={() => handleTogglePartner(c.id, c.is_partner)} style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', border: `1px solid ${c.is_partner ? 'rgba(129,140,248,0.3)' : 'rgba(255,255,255,0.15)'}`, background: 'transparent', color: c.is_partner ? '#818cf8' : 'rgba(255,255,255,0.4)', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        {c.is_partner ? '🤝 Partner' : 'Set Partner'}
                       </button>
                     </div>
                   </div>
                 ))}
-                {filteredClients.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Tidak ada klien ditemukan</div>
-                )}
+                {filteredClients.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Tidak ada klien ditemukan</div>}
               </div>
             </div>
           )}
@@ -505,72 +459,72 @@ export default function AdminDashboard() {
             <div className="fadeUp">
               {/* Tab */}
               <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                <button onClick={() => setPartnerTab('pendaftar')} style={{ padding: '9px 20px', borderRadius: '10px', border: partnerTab === 'pendaftar' ? 'none' : '1px solid rgba(255,255,255,0.1)', background: partnerTab === 'pendaftar' ? 'linear-gradient(135deg,#818cf8,#6366f1)' : 'transparent', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  📋 Pendaftar
-                  {pendingPartners.length > 0 && <span style={{ background: '#EF4444', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: '100px' }}>{pendingPartners.length}</span>}
-                </button>
-                <button onClick={() => setPartnerTab('aktif')} style={{ padding: '9px 20px', borderRadius: '10px', border: partnerTab === 'aktif' ? 'none' : '1px solid rgba(255,255,255,0.1)', background: partnerTab === 'aktif' ? 'linear-gradient(135deg,#818cf8,#6366f1)' : 'transparent', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  🤝 Partner Aktif ({activePartners.length})
-                </button>
+                {[
+                  { id: 'pendaftar', label: '📋 Pendaftar', count: pendingPartners.length, showBadge: true },
+                  { id: 'aktif', label: '🤝 Partner Aktif', count: activePartners.length, showBadge: false },
+                ].map(tab => (
+                  <button key={tab.id} onClick={() => setPartnerTab(tab.id as 'pendaftar' | 'aktif')} style={{ padding: '9px 20px', borderRadius: '10px', border: partnerTab === tab.id ? 'none' : '1px solid rgba(255,255,255,0.1)', background: partnerTab === tab.id ? 'linear-gradient(135deg,#818cf8,#6366f1)' : 'transparent', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {tab.label} ({tab.count})
+                    {tab.showBadge && tab.count > 0 && <span style={{ background: '#EF4444', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '1px 6px', borderRadius: '100px' }}>{tab.count}</span>}
+                  </button>
+                ))}
               </div>
 
               {/* Tab: Pendaftar */}
               {partnerTab === 'pendaftar' && (
-                <div>
-                  {partnerApplications.filter(p => p.status === 'pending' || p.status === 'ditolak').length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {pendingPartners.length === 0 && rejectedPartners.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '60px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px' }}>
                       <div style={{ fontSize: '2rem', marginBottom: '12px' }}>✅</div>
                       <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Tidak ada pendaftar yang perlu direview</p>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {partnerApplications.filter(p => p.status !== 'aktif').map(app => (
-                        <div key={app.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${app.status === 'pending' ? 'rgba(129,140,248,0.2)' : 'rgba(239,68,68,0.15)'}`, borderRadius: '16px', padding: '20px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{app.nama_lengkap}</div>
-                                <span style={{ fontSize: '0.68rem', background: app.status === 'pending' ? 'rgba(239,159,39,0.15)' : 'rgba(239,68,68,0.15)', color: app.status === 'pending' ? '#EF9F27' : '#EF4444', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>
-                                  {app.status === 'pending' ? '⏳ Pending' : '❌ Ditolak'}
-                                </span>
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
-                                📧 {app.email} · 📱 {app.nomor_wa}
-                                {app.domisili && ` · 📍 ${app.domisili}`}
-                                {app.profesi && ` · 💼 ${app.profesi}`}
-                              </div>
-                              {app.jaringan_umkm && (
-                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px 12px', marginBottom: '8px', lineHeight: 1.6 }}>
-                                  <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Jaringan:</strong> {app.jaringan_umkm}
-                                </div>
-                              )}
-                              {app.alasan && (
-                                <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px 12px', lineHeight: 1.6 }}>
-                                  <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Alasan:</strong> {app.alasan}
-                                </div>
-                              )}
-                              <div style={{ marginTop: '8px', display: 'flex', gap: '16px', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
-                                {app.estimasi_kontak && <span>👥 {app.estimasi_kontak}</span>}
-                                <span>📅 {new Date(app.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                              </div>
+                    [...pendingPartners, ...rejectedPartners].map(app => (
+                      <div key={app.id} style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${app.status === 'pending' ? 'rgba(129,140,248,0.2)' : 'rgba(239,68,68,0.15)'}`, borderRadius: '16px', padding: '20px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{app.nama_lengkap}</div>
+                              <span style={{ fontSize: '0.68rem', background: app.status === 'pending' ? 'rgba(239,159,39,0.15)' : 'rgba(239,68,68,0.15)', color: app.status === 'pending' ? '#EF9F27' : '#EF4444', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>
+                                {app.status === 'pending' ? '⏳ Pending' : '❌ Ditolak'}
+                              </span>
                             </div>
-                            {app.status === 'pending' && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                                <button className="btn-action" onClick={() => handleApprovePartner(app.id, app.nama_lengkap, app.email, app.nomor_wa)} disabled={approvingPartner === app.id} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: approvingPartner === app.id ? 0.5 : 1 }}>
-                                  {approvingPartner === app.id ? '⏳...' : '✅ Approve'}
-                                </button>
-                                <button className="btn-action" onClick={() => handleTolakPartner(app.id, app.nama_lengkap)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#EF4444', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                                  ❌ Tolak
-                                </button>
-                                <a href={`https://wa.me/${app.nomor_wa}?text=Halo ${app.nama_lengkap}, kami dari Mahirusaha ingin menindaklanjuti pendaftaran partner kamu.`} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                                  💬 Chat WA
-                                </a>
+                            <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: '8px' }}>
+                              📧 {app.email} · 📱 {app.nomor_wa}
+                              {app.domisili && ` · 📍 ${app.domisili}`}
+                              {app.profesi && ` · 💼 ${app.profesi}`}
+                            </div>
+                            {app.jaringan_umkm && (
+                              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', lineHeight: 1.6 }}>
+                                <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Jaringan:</strong> {app.jaringan_umkm}
                               </div>
                             )}
+                            {app.alasan && (
+                              <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', padding: '10px 12px', marginBottom: '6px', lineHeight: 1.6 }}>
+                                <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Alasan:</strong> {app.alasan}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: '16px', fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '6px' }}>
+                              {app.estimasi_kontak && <span>👥 {app.estimasi_kontak}</span>}
+                              <span>📅 {new Date(app.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                            </div>
                           </div>
+                          {app.status === 'pending' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <button className="btn-a" onClick={() => handleApprovePartner(app.id, app.nama_lengkap, app.nomor_wa)} disabled={approvingPartner === app.id} style={{ padding: '10px 20px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: approvingPartner === app.id ? 0.5 : 1 }}>
+                                {approvingPartner === app.id ? '⏳...' : '✅ Approve'}
+                              </button>
+                              <button className="btn-a" onClick={() => handleTolakPartner(app.id, app.nama_lengkap)} style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#EF4444', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                ❌ Tolak
+                              </button>
+                              <a href={`https://wa.me/${app.nomor_wa}?text=Halo ${app.nama_lengkap}, kami dari Mahirusaha ingin menindaklanjuti pendaftaran partner kamu.`} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 16px', borderRadius: '10px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', fontWeight: 600, fontSize: '0.78rem', textDecoration: 'none', textAlign: 'center' }}>
+                                💬 Chat WA
+                              </a>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))
                   )}
                 </div>
               )}
@@ -578,12 +532,15 @@ export default function AdminDashboard() {
               {/* Tab: Partner Aktif */}
               {partnerTab === 'aktif' && (
                 <div>
+                  {/* Daftar Partner Aktif */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px' }}>
                     <div style={{ padding: '14px 20px', background: 'rgba(129,140,248,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       <h3 style={{ fontWeight: 700, fontSize: '0.875rem', color: '#818cf8' }}>🤝 Partner Aktif ({activePartners.length})</h3>
                     </div>
                     {activePartners.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Belum ada partner aktif</div>
+                      <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>
+                        Belum ada partner aktif — approve dari tab Pendaftar
+                      </div>
                     ) : (
                       activePartners.map((p, i) => (
                         <div key={p.id} style={{ padding: '16px 20px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
@@ -591,18 +548,22 @@ export default function AdminDashboard() {
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                                 <div style={{ fontWeight: 700, fontSize: '0.875rem' }}>{p.nama_lengkap}</div>
-                                <span style={{ fontSize: '0.68rem', background: 'rgba(129,140,248,0.15)', color: '#818cf8', padding: '2px 8px', borderRadius: '100px', fontWeight: 700 }}>Aktif</span>
+                                <span style={{ fontSize: '0.68rem', background: 'rgba(37,211,102,0.15)', color: '#25d366', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>Aktif</span>
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '4px' }}>{p.email} · {p.nomor_wa}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#818cf8', fontFamily: 'monospace', fontWeight: 600 }}>Kode: {p.referral_code}</div>
+                              <div style={{ display: 'flex', gap: '16px', fontSize: '0.72rem' }}>
+                                <span style={{ color: '#818cf8', fontFamily: 'monospace', fontWeight: 700 }}>Kode: {p.referral_code}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.4)' }}>Total komisi: <strong style={{ color: '#25d366' }}>{fmt(komisiList.filter(k => k.partner_id === p.id).reduce((sum, k) => sum + k.jumlah_komisi, 0))}</strong></span>
+                                <span style={{ color: 'rgba(255,255,255,0.4)' }}>Pending: <strong style={{ color: '#EF9F27' }}>{fmt(komisiList.filter(k => k.partner_id === p.id && k.status === 'pending').reduce((sum, k) => sum + k.jumlah_komisi, 0))}</strong></span>
+                              </div>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {editingPartner === p.id ? (
+                              {editingKomisi === p.id ? (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                   <input type="number" min="1" max="50" value={newKomisiPersen} onChange={e => setNewKomisiPersen(parseInt(e.target.value))} style={{ width: '60px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(37,211,102,0.3)', color: '#fff', padding: '6px 10px', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none', textAlign: 'center' }} />
-                                  <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem' }}>%</span>
-                                  <button onClick={() => handleUpdateKomisiPartner(p.id)} disabled={saving} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}>{saving ? '...' : 'Simpan'}</button>
-                                  <button onClick={() => setEditingPartner(null)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}>Batal</button>
+                                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>%</span>
+                                  <button onClick={() => handleUpdateKomisi(p.id)} disabled={saving} style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit' }}>{saving ? '...' : 'Simpan'}</button>
+                                  <button onClick={() => setEditingKomisi(null)} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}>Batal</button>
                                 </div>
                               ) : (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -610,9 +571,7 @@ export default function AdminDashboard() {
                                     <div style={{ fontWeight: 800, fontSize: '1.3rem', color: '#818cf8' }}>{p.komisi_persen}%</div>
                                     <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Komisi</div>
                                   </div>
-                                  <button className="btn-action" onClick={() => { setEditingPartner(p.id); setNewKomisiPersen(p.komisi_persen || 15) }} style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 600 }}>
-                                    ✏️ Edit Komisi
-                                  </button>
+                                  <button className="btn-a" onClick={() => { setEditingKomisi(p.id); setNewKomisiPersen(p.komisi_persen || 15) }} style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: 600 }}>✏️ Edit Komisi</button>
                                 </div>
                               )}
                             </div>
@@ -631,31 +590,39 @@ export default function AdminDashboard() {
                     {komisiList.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)', fontSize: '0.875rem' }}>Belum ada komisi</div>
                     ) : (
-                      komisiList.map((k, i) => {
-                        const partner = clients.find(c => c.id === k.partner_client_id)
-                        const referred = clients.find(c => c.id === k.referred_client_id)
-                        return (
-                          <div key={k.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '12px', padding: '14px 20px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', alignItems: 'center' }}>
-                            <div>
-                              <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{partner?.nama_pemilik || '-'}</div>
-                              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Partner</div>
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '12px', padding: '10px 20px', background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <span>Partner</span><span>Klien Referral</span><span>Komisi</span><span>Periode</span><span>Status</span>
+                        </div>
+                        {komisiList.map((k, i) => {
+                          const partner = partners.find(p => p.id === k.partner_id)
+                          const referred = clients.find(c => c.id === k.referred_client_id)
+                          return (
+                            <div key={k.id} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '12px', padding: '14px 20px', borderTop: '1px solid rgba(255,255,255,0.04)', alignItems: 'center' }}>
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{partner?.nama_lengkap || '-'}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{partner?.komisi_persen || 15}% komisi</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)' }}>{referred?.nama_pemilik || '-'}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{referred ? getPaketLabel(referred.paket) : '-'}</div>
+                              </div>
+                              <div style={{ fontWeight: 700, color: '#25d366', fontSize: '0.82rem' }}>{fmt(k.jumlah_komisi)}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{namaBulan(k.bulan)} {k.tahun}</div>
+                              <div>
+                                {k.status === 'pending' ? (
+                                  <button className="btn-a" onClick={() => handleBayarKomisi(k.id)} style={{ fontSize: '0.68rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>✅ Tandai Dibayar</button>
+                                ) : (
+                                  <div>
+                                    <div style={{ fontSize: '0.72rem', color: '#25d366', fontWeight: 600 }}>✅ Dibayar</div>
+                                    {k.tanggal_dibayar && <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>{new Date(k.tanggal_dibayar).toLocaleDateString('id-ID')}</div>}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)' }}>{referred?.nama_pemilik || '-'}</div>
-                              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Klien referral</div>
-                            </div>
-                            <div style={{ fontWeight: 700, color: '#25d366', fontSize: '0.82rem' }}>{fmt(k.jumlah_komisi)}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{namaBulan(k.bulan)} {k.tahun}</div>
-                            <div>
-                              {k.status === 'pending' ? (
-                                <button className="btn-action" onClick={() => handleBayarKomisi(k.id)} style={{ fontSize: '0.68rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>✅ Tandai Dibayar</button>
-                              ) : (
-                                <span style={{ fontSize: '0.72rem', color: '#25d366', fontWeight: 600 }}>✅ Dibayar</span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })
+                          )
+                        })}
+                      </>
                     )}
                   </div>
                 </div>
@@ -685,7 +652,7 @@ export default function AdminDashboard() {
                       <div style={{ fontSize: '0.75rem', color: s.is_trial ? '#EF9F27' : 'rgba(255,255,255,0.4)' }}>{s.is_trial ? 'Trial' : 'Paid'}</div>
                       <div style={{ fontSize: '0.78rem', color: s.aktif ? '#25d366' : '#EF4444', fontWeight: 600 }}>{s.aktif ? '🟢 Aktif' : '🔴 Mati'}</div>
                       <div>
-                        <button className="btn-action" onClick={() => { setEditingStore(s.id); setNewNomorWA(s.nomor_wa_toko) }} style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Ganti Nomor</button>
+                        <button className="btn-a" onClick={() => { setEditingStore(s.id); setNewNomorWA(s.nomor_wa_toko) }} style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Ganti Nomor</button>
                       </div>
                     </div>
                     {editingStore === s.id && (
@@ -722,9 +689,7 @@ export default function AdminDashboard() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
                         <select value={lead.status} onChange={e => handleUpdateLeadStatus(lead.id, e.target.value)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '7px 12px', borderRadius: '8px', fontSize: '0.78rem', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}>
-                          {['baru', 'dihubungi', 'demo', 'negosiasi', 'closing', 'batal'].map(s => (
-                            <option key={s} value={s} style={{ background: '#111827' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                          ))}
+                          {['baru','dihubungi','demo','negosiasi','closing','batal'].map(s => <option key={s} value={s} style={{ background: '#111827' }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                         </select>
                         {lead.nomor_wa && (
                           <a href={`https://wa.me/${lead.nomor_wa}?text=Halo ${lead.nama_pic}, kami dari Mahirusaha ingin menindaklanjuti permintaan demo Anda.`} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.25)', color: '#25d366', padding: '7px 12px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>💬 Chat WA</a>
@@ -751,11 +716,11 @@ export default function AdminDashboard() {
                   { label: 'MRR', value: fmt(stats.mrr), sub: 'Monthly Recurring Revenue', color: '#25d366' },
                   { label: 'ARR', value: fmt(stats.mrr * 12), sub: 'Annual Recurring Revenue', color: '#25d366' },
                   { label: 'Avg Revenue/Klien', value: stats.klienAktif > 0 ? fmt(Math.round(stats.mrr / stats.klienAktif)) : 'Rp 0', sub: 'Per klien aktif', color: '#fff' },
-                ].map(stat => (
-                  <div key={stat.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</div>
-                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: stat.color, marginBottom: '4px' }}>{stat.value}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)' }}>{stat.sub}</div>
+                ].map(s => (
+                  <div key={s.label} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '20px' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: s.color, marginBottom: '4px' }}>{s.value}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)' }}>{s.sub}</div>
                   </div>
                 ))}
               </div>
