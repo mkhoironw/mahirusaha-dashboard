@@ -130,9 +130,28 @@ export async function POST(request: NextRequest) {
 
     
     // Jalankan async tapi tunggu sebentar agar tidak dipotong Vercel
-    kirimBroadcastAsync(broadcast.id, kontakList, pesan, phoneNumberId, accessToken, delay_detik).catch(console.error)
+    // Kirim ke Railway untuk proses broadcast tanpa timeout
+	const railwayUrl = process.env.RAILWAY_URL || 'https://chatbot-wa-production-247e.up.railway.app'
+		fetch(`${railwayUrl}/broadcast`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			'x-broadcast-secret': process.env.BROADCAST_SECRET || 'mahirusaha_broadcast_2026'
+		},
+		body: JSON.stringify({
+		broadcast_id: broadcast.id,
+		kontak_list: kontakList.map(([nomor, nama]) => ({ nomor, nama })),
+		pesan,
+		phone_number_id: phoneNumberId,
+		access_token: accessToken,
+		delay_detik,
+		})
+	}).catch(console.error)
 
-    return NextResponse.json({
+    
+	
+	
+	return NextResponse.json({
       success: true,
       broadcast_id: broadcast.id,
       total_target: kontakList.length,
