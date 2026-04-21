@@ -1,3 +1,4 @@
+export const maxDuration = 60
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -127,8 +128,9 @@ export async function POST(request: NextRequest) {
     const phoneNumberId = store?.wa_phone_number_id || process.env.PHONE_NUMBER_ID
     const accessToken = store?.wa_access_token || process.env.WHATSAPP_TOKEN
 
-    // Kirim pesan secara async (tidak tunggu selesai)
-    kirimBroadcastAsync(broadcast.id, kontakList, pesan, phoneNumberId, accessToken, delay_detik)
+    
+    // Jalankan async tapi tunggu sebentar agar tidak dipotong Vercel
+    kirimBroadcastAsync(broadcast.id, kontakList, pesan, phoneNumberId, accessToken, delay_detik).catch(console.error)
 
     return NextResponse.json({
       success: true,
