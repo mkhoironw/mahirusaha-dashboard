@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#25d366"/>
+      <stop offset="100%" style="stop-color:#128c7e"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- Shine overlay -->
+  <rect width="64" height="64" rx="14" fill="url(#shine)"/>
+
+  <!-- Chat bubble utama -->
+  <rect x="10" y="12" width="44" height="32" rx="8" fill="white" opacity="0.95"/>
+
+  <!-- Ekor bubble -->
+  <path d="M14 44 L10 54 L22 47" fill="white" opacity="0.95"/>
+
+  <!-- 3 dot loading (animasi) -->
+  <circle cx="22" cy="28" r="4" fill="#25d366"/>
+  <circle cx="32" cy="28" r="4" fill="#25d366" opacity="0.7"/>
+  <circle cx="42" cy="28" r="4" fill="#25d366" opacity="0.4"/>
+</svg>
