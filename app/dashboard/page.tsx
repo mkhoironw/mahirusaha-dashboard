@@ -282,7 +282,7 @@ export default function Dashboard() {
   const menuItems = [
     { id: 'overview', icon: '📊', label: 'Overview' },
     { id: 'percakapan', icon: '💬', label: 'Percakapan', badge: unreadCount },
-    { id: 'broadcast', icon: '📢', label: 'Broadcast', badge: 0 },
+    { id: 'broadcast', icon: '📢', label: 'Broadcast' },
     { id: 'analytics', icon: '📈', label: 'Analytics' },
     { id: 'crm', icon: '👥', label: 'CRM' },
     { id: 'produk', icon: '📦', label: 'Produk' },
