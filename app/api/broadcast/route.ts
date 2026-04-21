@@ -1,6 +1,7 @@
-export const maxDuration = 60
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+
+export const maxDuration = 60
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST — buat broadcast baru & mulai kirim
+// POST — buat broadcast baru & kirim via Railway
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 })
     }
 
-    // Cek paket klien — broadcast hanya untuk Pro+
+    // Cek paket klien
     const { data: client } = await supabase
       .from('clients')
       .select('paket, status')
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    // Ambil semua kontak unik yang pernah chat dengan toko ini
+    // Ambil semua kontak unik yang pernah chat
     const { data: conversations } = await supabase
       .from('conversations')
       .select('nomor_pelanggan, nama_pelanggan')
@@ -73,23 +74,39 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Deduplikasi kontak
+    // Ambil nama custom dari CRM (bot_sessions.nama_custom)
+    const { data: botSessions } = await supabase
+      .from('bot_sessions')
+      .select('nomor_pelanggan, nama_custom')
+      .eq('store_id', store_id)
+      .not('nama_custom', 'is', null)
+
+    const namaCustomMap = new Map<string, string>()
+    for (const s of botSessions || []) {
+      namaCustomMap.set(s.nomor_pelanggan, s.nama_custom)
+    }
+
+    // Deduplikasi kontak — prioritaskan nama dari CRM
     const kontakMap = new Map<string, string>()
-	for (const conv of conversations) {
-	if (!kontakMap.has(conv.nomor_pelanggan)) {
-		kontakMap.set(conv.nomor_pelanggan, conv.nama_pelanggan || '')
-	}
-	}
-	let kontakList = Array.from(kontakMap.entries())
+    for (const conv of conversations) {
+      if (!kontakMap.has(conv.nomor_pelanggan)) {
+        const nama = namaCustomMap.get(conv.nomor_pelanggan) || conv.nama_pelanggan || ''
+        kontakMap.set(conv.nomor_pelanggan, nama)
+      }
+    }
 
-	// Filter jika ada nomor terpilih
-	if (nomor_terpilih && Array.isArray(nomor_terpilih) && nomor_terpilih.length > 0) {
-		kontakList = kontakList.filter(([nomor]) => nomor_terpilih.includes(nomor))
-	}	
+    let kontakList = Array.from(kontakMap.entries())
 
-	
-	
-	// Buat record broadcast
+    // Filter jika ada nomor terpilih
+    if (nomor_terpilih && Array.isArray(nomor_terpilih) && nomor_terpilih.length > 0) {
+      kontakList = kontakList.filter(([nomor]) => nomor_terpilih.includes(nomor))
+    }
+
+    if (kontakList.length === 0) {
+      return NextResponse.json({ error: 'Tidak ada kontak yang valid.' }, { status: 400 })
+    }
+
+    // Buat record broadcast
     const { data: broadcast, error: broadcastError } = await supabase
       .from('broadcasts')
       .insert({
@@ -97,7 +114,7 @@ export async function POST(request: NextRequest) {
         client_id,
         judul,
         pesan,
-        target: 'semua',
+        target: nomor_terpilih ? 'pilihan' : 'semua',
         total_target: kontakList.length,
         status: 'proses',
         delay_detik,
@@ -108,7 +125,7 @@ export async function POST(request: NextRequest) {
 
     if (broadcastError || !broadcast) throw broadcastError
 
-    // Insert semua penerima dengan status pending
+    // Insert semua penerima
     const recipients = kontakList.map(([nomor, nama]) => ({
       broadcast_id: broadcast.id,
       nomor_pelanggan: nomor,
@@ -118,40 +135,36 @@ export async function POST(request: NextRequest) {
 
     await supabase.from('broadcast_recipients').insert(recipients)
 
-    // Ambil data toko untuk kirim pesan
+    // Ambil data toko
     const { data: store } = await supabase
       .from('stores')
-      .select('wa_phone_number_id, wa_access_token, nomor_wa_toko')
+      .select('wa_phone_number_id, wa_access_token')
       .eq('id', store_id)
       .single()
 
     const phoneNumberId = store?.wa_phone_number_id || process.env.PHONE_NUMBER_ID
     const accessToken = store?.wa_access_token || process.env.WHATSAPP_TOKEN
 
-    
-    // Jalankan async tapi tunggu sebentar agar tidak dipotong Vercel
     // Kirim ke Railway untuk proses broadcast tanpa timeout
-	const railwayUrl = process.env.RAILWAY_URL || 'https://chatbot-wa-production-247e.up.railway.app'
-		fetch(`${railwayUrl}/broadcast`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'x-broadcast-secret': process.env.BROADCAST_SECRET || 'mahirusaha_broadcast_2026'
-		},
-		body: JSON.stringify({
-		broadcast_id: broadcast.id,
-		kontak_list: kontakList.map(([nomor, nama]) => ({ nomor, nama })),
-		pesan,
-		phone_number_id: phoneNumberId,
-		access_token: accessToken,
-		delay_detik,
-		})
-	}).catch(console.error)
+    const railwayUrl = process.env.RAILWAY_URL || 'https://chatbot-wa-production-247e.up.railway.app'
 
-    
-	
-	
-	return NextResponse.json({
+    fetch(`${railwayUrl}/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-broadcast-secret': process.env.BROADCAST_SECRET || 'mahirusaha_broadcast_2026'
+      },
+      body: JSON.stringify({
+        broadcast_id: broadcast.id,
+        kontak_list: kontakList.map(([nomor, nama]) => ({ nomor, nama })),
+        pesan,
+        phone_number_id: phoneNumberId,
+        access_token: accessToken,
+        delay_detik,
+      })
+    }).catch(err => console.error('Error kirim ke Railway:', err))
+
+    return NextResponse.json({
       success: true,
       broadcast_id: broadcast.id,
       total_target: kontakList.length,
@@ -162,94 +175,4 @@ export async function POST(request: NextRequest) {
     console.error('Error POST broadcast:', error)
     return NextResponse.json({ error: 'Gagal membuat broadcast' }, { status: 500 })
   }
-}
-
-// Fungsi kirim broadcast secara async dengan delay
-async function kirimBroadcastAsync(
-  broadcastId: string,
-  kontakList: [string, string][],
-  pesan: string,
-  phoneNumberId: string,
-  accessToken: string,
-  delayDetik: number
-) {
-  let terkirim = 0
-  let gagal = 0
-
-  for (const [nomor, nama] of kontakList) {
-    try {
-      // Personalisasi pesan dengan nama pelanggan
-      const pesanPersonal = nama
-        ? pesan.replace(/\{nama\}/g, nama)
-        : pesan.replace(/\{nama\}/g, 'Kak')
-
-      // Kirim via WhatsApp API
-      const response = await fetch(
-        `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: nomor,
-            type: 'text',
-            text: { body: pesanPersonal }
-          }),
-        }
-      )
-
-      const result = await response.json()
-
-      if (result.messages && result.messages[0]?.id) {
-        // Sukses
-        terkirim++
-        await supabase
-          .from('broadcast_recipients')
-          .update({ status: 'terkirim', dikirim_at: new Date().toISOString() })
-          .eq('broadcast_id', broadcastId)
-          .eq('nomor_pelanggan', nomor)
-      } else {
-        // Gagal
-        gagal++
-        await supabase
-          .from('broadcast_recipients')
-          .update({ status: 'gagal', error_message: result.error?.message || 'Unknown error' })
-          .eq('broadcast_id', broadcastId)
-          .eq('nomor_pelanggan', nomor)
-      }
-
-    } catch (err) {
-      gagal++
-      await supabase
-        .from('broadcast_recipients')
-        .update({ status: 'gagal', error_message: 'Network error' })
-        .eq('broadcast_id', broadcastId)
-        .eq('nomor_pelanggan', nomor)
-    }
-
-    // Update progress di broadcast
-    await supabase
-      .from('broadcasts')
-      .update({ total_terkirim: terkirim, total_gagal: gagal })
-      .eq('id', broadcastId)
-
-    // Delay anti-banned
-    await new Promise(resolve => setTimeout(resolve, delayDetik * 1000))
-  }
-
-  // Update status selesai
-  await supabase
-    .from('broadcasts')
-    .update({
-      status: 'selesai',
-      total_terkirim: terkirim,
-      total_gagal: gagal,
-      selesai_at: new Date().toISOString(),
-    })
-    .eq('id', broadcastId)
-
-  console.log(`✅ Broadcast ${broadcastId} selesai: ${terkirim} terkirim, ${gagal} gagal`)
 }
