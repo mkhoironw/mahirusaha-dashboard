@@ -88,20 +88,35 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
   }
 
   const loadKontak = async () => {
-    const { data } = await supabase
+    // Ambil percakapan
+    const { data: conversations } = await supabase
       .from('conversations')
       .select('nomor_pelanggan, nama_pelanggan, created_at')
       .eq('store_id', storeId)
       .not('nomor_pelanggan', 'is', null)
       .order('created_at', { ascending: false })
 
-    if (data) {
+    // Ambil nama custom dari CRM (bot_sessions.nama_custom)
+    const { data: sessions } = await supabase
+      .from('bot_sessions')
+      .select('nomor_pelanggan, nama_custom')
+      .eq('store_id', storeId)
+      .not('nama_custom', 'is', null)
+
+    const namaCustomMap = new Map<string, string>()
+    for (const s of sessions || []) {
+      namaCustomMap.set(s.nomor_pelanggan, s.nama_custom)
+    }
+
+    if (conversations) {
       const kontakMap = new Map<string, Kontak>()
-      for (const conv of data) {
+      for (const conv of conversations) {
         if (!kontakMap.has(conv.nomor_pelanggan)) {
+          // Prioritaskan nama dari CRM, fallback ke nama_pelanggan
+          const nama = namaCustomMap.get(conv.nomor_pelanggan) || conv.nama_pelanggan || ''
           kontakMap.set(conv.nomor_pelanggan, {
             nomor: conv.nomor_pelanggan,
-            nama: conv.nama_pelanggan || '',
+            nama,
             terakhir_chat: conv.created_at,
           })
         }
@@ -155,9 +170,7 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
 
     setSending(true)
     try {
-      const nomorTerpilih = targetMode === 'pilih'
-        ? Array.from(selectedKontak)
-        : null // null = kirim ke semua
+      const nomorTerpilih = targetMode === 'pilih' ? Array.from(selectedKontak) : null
 
       const response = await fetch('/api/broadcast', {
         method: 'POST',
@@ -235,6 +248,8 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
     marginBottom: '5px',
   }
 
+  const getNamaDisplay = (k: Kontak) => k.nama || k.nomor
+
   return (
     <div>
       {/* Header */}
@@ -303,65 +318,44 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
               <input required style={inputStyle} placeholder="Contoh: Promo Lebaran 2026" value={form.judul} onChange={e => setForm(p => ({ ...p, judul: e.target.value }))} />
             </div>
 
-            {/* Pilih Target */}
+            {/* Target */}
             <div>
               <label style={labelStyle}>Target penerima</label>
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => { setTargetMode('semua'); setSelectedKontak(new Set()) }}
-                  style={{ flex: 1, padding: '10px', borderRadius: '10px', border: `1px solid ${targetMode === 'semua' ? '#25d366' : 'rgba(255,255,255,0.1)'}`, background: targetMode === 'semua' ? 'rgba(37,211,102,0.1)' : 'transparent', color: targetMode === 'semua' ? '#25d366' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: targetMode === 'semua' ? 700 : 500, fontSize: '0.82rem' }}
-                >
+                <button type="button" onClick={() => { setTargetMode('semua'); setSelectedKontak(new Set()) }}
+                  style={{ flex: 1, padding: '10px', borderRadius: '10px', border: `1px solid ${targetMode === 'semua' ? '#25d366' : 'rgba(255,255,255,0.1)'}`, background: targetMode === 'semua' ? 'rgba(37,211,102,0.1)' : 'transparent', color: targetMode === 'semua' ? '#25d366' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: targetMode === 'semua' ? 700 : 500, fontSize: '0.82rem' }}>
                   👥 Semua Kontak ({totalKontak})
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setTargetMode('pilih')}
-                  style={{ flex: 1, padding: '10px', borderRadius: '10px', border: `1px solid ${targetMode === 'pilih' ? '#25d366' : 'rgba(255,255,255,0.1)'}`, background: targetMode === 'pilih' ? 'rgba(37,211,102,0.1)' : 'transparent', color: targetMode === 'pilih' ? '#25d366' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: targetMode === 'pilih' ? 700 : 500, fontSize: '0.82rem' }}
-                >
+                <button type="button" onClick={() => setTargetMode('pilih')}
+                  style={{ flex: 1, padding: '10px', borderRadius: '10px', border: `1px solid ${targetMode === 'pilih' ? '#25d366' : 'rgba(255,255,255,0.1)'}`, background: targetMode === 'pilih' ? 'rgba(37,211,102,0.1)' : 'transparent', color: targetMode === 'pilih' ? '#25d366' : 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: targetMode === 'pilih' ? 700 : 500, fontSize: '0.82rem' }}>
                   ✋ Pilih Manual {targetMode === 'pilih' && selectedKontak.size > 0 ? `(${selectedKontak.size})` : ''}
                 </button>
               </div>
 
-              {/* Daftar kontak untuk dipilih */}
+              {/* Daftar kontak */}
               {targetMode === 'pilih' && (
                 <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', overflow: 'hidden' }}>
-                  {/* Search + Select All */}
                   <div style={{ padding: '12px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      style={{ ...inputStyle, padding: '8px 12px', fontSize: '0.82rem' }}
-                      placeholder="🔍 Cari nama atau nomor..."
-                      value={searchKontak}
-                      onChange={e => setSearchKontak(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      onClick={toggleSemuaKontak}
-                      style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}
-                    >
+                    <input style={{ ...inputStyle, padding: '8px 12px', fontSize: '0.82rem' }} placeholder="🔍 Cari nama atau nomor..." value={searchKontak} onChange={e => setSearchKontak(e.target.value)} />
+                    <button type="button" onClick={toggleSemuaKontak}
+                      style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid rgba(37,211,102,0.3)', background: 'transparent', color: '#25d366', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {selectedKontak.size === filteredKontak.length ? 'Batal Semua' : 'Pilih Semua'}
                     </button>
                   </div>
 
-                  {/* List kontak */}
                   <div style={{ maxHeight: '240px', overflowY: 'auto' }}>
                     {filteredKontak.length === 0 ? (
-                      <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>
-                        Tidak ada kontak ditemukan
-                      </div>
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>Tidak ada kontak</div>
                     ) : (
                       filteredKontak.map((k, i) => (
-                        <div
-                          key={k.nomor}
-                          onClick={() => toggleKontak(k.nomor)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', background: selectedKontak.has(k.nomor) ? 'rgba(37,211,102,0.06)' : 'transparent', transition: 'background 0.15s' }}
-                        >
+                        <div key={k.nomor} onClick={() => toggleKontak(k.nomor)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none', cursor: 'pointer', background: selectedKontak.has(k.nomor) ? 'rgba(37,211,102,0.06)' : 'transparent', transition: 'background 0.15s' }}>
                           <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${selectedKontak.has(k.nomor) ? '#25d366' : 'rgba(255,255,255,0.2)'}`, background: selectedKontak.has(k.nomor) ? '#25d366' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
                             {selectedKontak.has(k.nomor) && <span style={{ color: '#070d1a', fontSize: '11px', fontWeight: 800 }}>✓</span>}
                           </div>
                           <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', flexShrink: 0 }}>👤</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{k.nama || k.nomor}</div>
+                            <div style={{ fontWeight: 600, fontSize: '0.82rem' }}>{getNamaDisplay(k)}</div>
                             <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>{k.nomor}</div>
                           </div>
                           <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
@@ -372,15 +366,10 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
                     )}
                   </div>
 
-                  {/* Footer info */}
                   <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                      {selectedKontak.size} dari {totalKontak} kontak dipilih
-                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{selectedKontak.size} dari {totalKontak} dipilih</span>
                     {selectedKontak.size > 0 && (
-                      <button type="button" onClick={() => setSelectedKontak(new Set())} style={{ fontSize: '0.72rem', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        Hapus pilihan
-                      </button>
+                      <button type="button" onClick={() => setSelectedKontak(new Set())} style={{ fontSize: '0.72rem', color: '#EF4444', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Hapus pilihan</button>
                     )}
                   </div>
                 </div>
@@ -391,18 +380,11 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                 <label style={{ ...labelStyle, marginBottom: 0 }}>Isi pesan *</label>
-                <span style={{ fontSize: '0.7rem', color: form.pesan.length > 900 ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>
-                  {form.pesan.length}/1000
-                </span>
+                <span style={{ fontSize: '0.7rem', color: form.pesan.length > 900 ? '#EF4444' : 'rgba(255,255,255,0.3)' }}>{form.pesan.length}/1000</span>
               </div>
-              <textarea
-                required
-                rows={5}
-                style={{ ...inputStyle, resize: 'none' }}
+              <textarea required rows={5} style={{ ...inputStyle, resize: 'none' }}
                 placeholder={`Halo {nama}! 👋\n\nAda promo spesial buat kamu hari ini...`}
-                value={form.pesan}
-                onChange={e => setForm(p => ({ ...p, pesan: e.target.value }))}
-              />
+                value={form.pesan} onChange={e => setForm(p => ({ ...p, pesan: e.target.value }))} />
               <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '5px' }}>
                 💡 Gunakan <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '4px' }}>{'{nama}'}</code> untuk personalisasi nama pelanggan
               </p>
@@ -435,13 +417,14 @@ export default function BroadcastPage({ storeId, clientId, clientPaket }: Broadc
                     {targetMode === 'semua' ? `${totalKontak} kontak (semua)` : `${selectedKontak.size} kontak terpilih`}
                   </strong>
                 </p>
-                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>⏱️ Estimasi waktu: <strong style={{ color: '#fff' }}>{estimasiWaktu(kontakTerpilih, form.delay_detik)}</strong></p>
-                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>🛡️ Delay per pesan: <strong style={{ color: '#fff' }}>{form.delay_detik} detik</strong></p>
+                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>⏱️ Estimasi: <strong style={{ color: '#fff' }}>{estimasiWaktu(kontakTerpilih, form.delay_detik)}</strong></p>
+                <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>🛡️ Delay: <strong style={{ color: '#fff' }}>{form.delay_detik} detik</strong></p>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="button" onClick={() => { setShowForm(false); setSelectedKontak(new Set()); setTargetMode('semua') }} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+              <button type="button" onClick={() => { setShowForm(false); setSelectedKontak(new Set()); setTargetMode('semua') }}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                 Batal
               </button>
               <button type="submit" disabled={sending || kontakTerpilih === 0}
