@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { store_id, client_id, judul, pesan, delay_detik = 4 } = body
+    const { store_id, client_id, judul, pesan, delay_detik = 4, nomor_terpilih = null } = body
 
     if (!store_id || !client_id || !judul || !pesan) {
       return NextResponse.json({ error: 'Data tidak lengkap' }, { status: 400 })
@@ -74,14 +74,21 @@ export async function POST(request: NextRequest) {
 
     // Deduplikasi kontak
     const kontakMap = new Map<string, string>()
-    for (const conv of conversations) {
-      if (!kontakMap.has(conv.nomor_pelanggan)) {
-        kontakMap.set(conv.nomor_pelanggan, conv.nama_pelanggan || '')
-      }
-    }
-    const kontakList = Array.from(kontakMap.entries())
+	for (const conv of conversations) {
+	if (!kontakMap.has(conv.nomor_pelanggan)) {
+		kontakMap.set(conv.nomor_pelanggan, conv.nama_pelanggan || '')
+	}
+	}
+	let kontakList = Array.from(kontakMap.entries())
 
-    // Buat record broadcast
+	// Filter jika ada nomor terpilih
+	if (nomor_terpilih && Array.isArray(nomor_terpilih) && nomor_terpilih.length > 0) {
+		kontakList = kontakList.filter(([nomor]) => nomor_terpilih.includes(nomor))
+	}	
+
+	
+	
+	// Buat record broadcast
     const { data: broadcast, error: broadcastError } = await supabase
       .from('broadcasts')
       .insert({
