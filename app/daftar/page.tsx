@@ -176,6 +176,13 @@ export default function Daftar() {
         persen_selesai: 25,
       })
 
+      localStorage.setItem('mahirusaha_client', JSON.stringify({
+        id: client.id,
+        nama: client.nama_pemilik,
+        email: client.email,
+        status: client.status,
+      }))
+
       try {
         await fetch('/api/email/welcome', {
           method: 'POST',
@@ -496,7 +503,7 @@ export default function Daftar() {
             </div>
             <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
               <a href="/dashboard" style={{ display: 'block', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', padding: '14px', borderRadius: '12px', textDecoration: 'none', fontWeight: 700, fontSize: '0.95rem' }}>Masuk ke Dashboard →</a>
-              <a href="/dashboard/produk" style={{ display: 'block', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '14px', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>Tambah Produk Sekarang</a>
+              <a href="/dashboard" style={{ display: 'block', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)', padding: '14px', borderRadius: '12px', textDecoration: 'none', fontWeight: 600, fontSize: '0.875rem' }}>Tambah Produk Sekarang</a>
             </div>
           </div>
         )}
