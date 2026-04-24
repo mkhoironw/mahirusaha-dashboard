@@ -33,6 +33,9 @@ export default function ProdukPage({ storeId }: ProductPageProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterKategori, setFilterKategori] = useState('semua')
 
+  const [notifiedShopee, setNotifiedShopee] = useState(false)
+  const [notifiedTiktok, setNotifiedTiktok] = useState(false)
+
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [form, setForm] = useState({
@@ -260,6 +263,115 @@ const handleUploadFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
         <span style={{ fontSize: '1rem', flexShrink: 0 }}>💡</span>
         <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.65 }}>
           <strong style={{ color: '#25d366' }}>Tips:</strong> Semakin lengkap info produk kamu, semakin pintar bot menjawab pelanggan. Isi nama, deskripsi, dan harga untuk hasil terbaik. Kalau produk habis, cukup matikan toggle <strong style={{ color: '#fff' }}>Tersedia</strong>.
+        </p>
+      </div>
+
+      {/* Integrasi Marketplace */}
+      <div style={{ marginBottom: '24px' }}>
+        <style>{`
+          @keyframes shimmer-badge {
+            0%,100% { opacity: 1; }
+            50% { opacity: 0.55; }
+          }
+          .badge-coming-soon { animation: shimmer-badge 2.4s ease-in-out infinite; }
+          .marketplace-card { transition: transform 0.2s, box-shadow 0.2s; }
+          .marketplace-card:hover { transform: translateY(-2px); }
+          .notify-btn { transition: all 0.2s; }
+          .notify-btn:hover:not(:disabled) { opacity: 0.85; transform: scale(0.98); }
+        `}</style>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <div>
+            <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '3px' }}>🔗 Integrasi Marketplace</h3>
+            <p style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.4)' }}>
+              Sync produk otomatis ke marketplace — kelola semua dari satu dashboard
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+
+          {/* --- Shopee Card --- */}
+          <div className="marketplace-card" style={{ background: 'rgba(238,77,45,0.05)', border: '1px solid rgba(238,77,45,0.18)', borderRadius: '16px', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(238,77,45,0.12)', filter: 'blur(28px)', pointerEvents: 'none' }}/>
+            <div style={{ position: 'absolute', bottom: '-20px', left: '-20px', width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(255,115,55,0.08)', filter: 'blur(20px)', pointerEvents: 'none' }}/>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg,#EE4D2D,#FF7337)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0, boxShadow: '0 4px 14px rgba(238,77,45,0.35)' }}>🛍️</div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.92rem' }}>Shopee</div>
+                  <div style={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.35)' }}>shopee.co.id</div>
+                </div>
+              </div>
+              <span className="badge-coming-soon" style={{ fontSize: '0.6rem', fontWeight: 800, padding: '3px 9px', borderRadius: '100px', background: 'rgba(238,77,45,0.15)', color: '#FF7337', border: '1px solid rgba(238,77,45,0.35)', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+                SEGERA HADIR
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.48)', lineHeight: 1.65, marginBottom: '16px', position: 'relative' }}>
+              Sync katalog produk ke Shopee secara otomatis. Stok & harga update real-time langsung dari dashboard ini — tanpa buka aplikasi lain.
+            </p>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', position: 'relative' }}>
+              {['Auto sync stok', 'Update harga', 'Kelola pesanan'].map(f => (
+                <span key={f} style={{ fontSize: '0.62rem', padding: '3px 7px', borderRadius: '6px', background: 'rgba(238,77,45,0.1)', color: 'rgba(255,115,55,0.8)', fontWeight: 600 }}>{f}</span>
+              ))}
+            </div>
+
+            <button
+              className="notify-btn"
+              onClick={() => setNotifiedShopee(true)}
+              disabled={notifiedShopee}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: notifiedShopee ? 'none' : '1px solid rgba(238,77,45,0.4)', background: notifiedShopee ? 'rgba(37,211,102,0.1)' : 'rgba(238,77,45,0.12)', color: notifiedShopee ? '#25d366' : '#FF7337', fontWeight: 700, fontSize: '0.8rem', cursor: notifiedShopee ? 'default' : 'pointer', fontFamily: 'inherit', position: 'relative' }}
+            >
+              {notifiedShopee ? '✅ Oke! Kami akan beritahu kamu' : '🔔 Beritahu Saya Saat Tersedia'}
+            </button>
+          </div>
+
+          {/* --- TikTok Shop Card --- */}
+          <div className="marketplace-card" style={{ background: 'rgba(105,201,208,0.04)', border: '1px solid rgba(105,201,208,0.18)', borderRadius: '16px', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '100px', height: '100px', borderRadius: '50%', background: 'rgba(105,201,208,0.1)', filter: 'blur(28px)', pointerEvents: 'none' }}/>
+            <div style={{ position: 'absolute', bottom: '-20px', left: '-20px', width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(254,44,85,0.07)', filter: 'blur(20px)', pointerEvents: 'none' }}/>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'linear-gradient(135deg,#010101,#69C9D0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0, boxShadow: '0 4px 14px rgba(105,201,208,0.25)', border: '1px solid rgba(105,201,208,0.2)' }}>🎵</div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.92rem' }}>TikTok Shop</div>
+                  <div style={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.35)' }}>tiktok.com/shop</div>
+                </div>
+              </div>
+              <span className="badge-coming-soon" style={{ fontSize: '0.6rem', fontWeight: 800, padding: '3px 9px', borderRadius: '100px', background: 'rgba(105,201,208,0.12)', color: '#69C9D0', border: '1px solid rgba(105,201,208,0.3)', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
+                SEGERA HADIR
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.48)', lineHeight: 1.65, marginBottom: '16px', position: 'relative' }}>
+              Kelola produk TikTok Shop langsung dari sini. Pantau performa video, pesanan masuk, dan sinkronkan stok secara otomatis.
+            </p>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', position: 'relative' }}>
+              {['Sync katalog', 'Lacak pesanan', 'Live analytics'].map(f => (
+                <span key={f} style={{ fontSize: '0.62rem', padding: '3px 7px', borderRadius: '6px', background: 'rgba(105,201,208,0.1)', color: 'rgba(105,201,208,0.8)', fontWeight: 600 }}>{f}</span>
+              ))}
+            </div>
+
+            <button
+              className="notify-btn"
+              onClick={() => setNotifiedTiktok(true)}
+              disabled={notifiedTiktok}
+              style={{ width: '100%', padding: '11px', borderRadius: '10px', border: notifiedTiktok ? 'none' : '1px solid rgba(105,201,208,0.4)', background: notifiedTiktok ? 'rgba(37,211,102,0.1)' : 'rgba(105,201,208,0.1)', color: notifiedTiktok ? '#25d366' : '#69C9D0', fontWeight: 700, fontSize: '0.8rem', cursor: notifiedTiktok ? 'default' : 'pointer', fontFamily: 'inherit', position: 'relative' }}
+            >
+              {notifiedTiktok ? '✅ Oke! Kami akan beritahu kamu' : '🔔 Beritahu Saya Saat Tersedia'}
+            </button>
+          </div>
+
+        </div>
+
+        {/* Coming soon note */}
+        <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.2)', marginTop: '10px', textAlign: 'center' }}>
+          Integrasi marketplace sedang dalam proses review API. Daftar antrean untuk akses pertama kali.
         </p>
       </div>
 
