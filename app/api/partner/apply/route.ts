@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
-          to: process.env.ADMIN_WA_NUMBER || '628132531210',
+          to: process.env.ADMIN_WA_NUMBER || '628132531202',
           type: 'text',
           text: { body: pesanAdmin }
         }),

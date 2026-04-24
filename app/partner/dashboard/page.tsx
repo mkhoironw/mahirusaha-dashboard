@@ -335,7 +335,7 @@ export default function PartnerDashboard() {
 
               <div style={{ marginTop: '16px', background: 'rgba(129,140,248,0.06)', border: '1px solid rgba(129,140,248,0.15)', borderRadius: '14px', padding: '16px 20px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7 }}>
-                  💡 Komisi <strong style={{ color: '#EF9F27' }}>Pending</strong> ditransfer setiap awal bulan. Hubungi tim kami di <strong style={{ color: '#818cf8' }}>+62 813-2531-210</strong> untuk daftarkan nomor rekening kamu.
+                  💡 Komisi <strong style={{ color: '#EF9F27' }}>Pending</strong> ditransfer setiap awal bulan. Hubungi tim kami di <strong style={{ color: '#818cf8' }}>+62 813-2531-202</strong> untuk daftarkan nomor rekening kamu.
                 </p>
               </div>
             </div>

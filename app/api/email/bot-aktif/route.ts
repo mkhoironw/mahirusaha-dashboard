@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     <div style="background:#fff;border-radius:16px;padding:24px;border:1px solid #e5e7eb;text-align:center;">
       <p style="color:#374151;font-weight:700;margin:0 0 8px;font-size:14px;">Ada pertanyaan?</p>
       <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
-        <a href="https://wa.me/628132531210" style="color:#25d366;font-size:13px;font-weight:600;text-decoration:none;">💬 +62 813-2531-210</a>
+        <a href="https://wa.me/628132531202" style="color:#25d366;font-size:13px;font-weight:600;text-decoration:none;">💬 +62 813-2531-202</a>
         <a href="mailto:hello@mahirusaha.com" style="color:#25d366;font-size:13px;font-weight:600;text-decoration:none;">📧 hello@mahirusaha.com</a>
       </div>
     </div>

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         ${[
           ['1', '📦', 'Tambah produk di dashboard', 'Isi nama, harga, foto produk agar bot bisa menjelaskan ke pelanggan'],
           ['2', '📱', 'Siapkan SIM card baru untuk bot', 'Beli SIM Telkomsel baru ~Rp 35rb khusus untuk nomor bot WhatsApp'],
-          ['3', '💬', 'Minta aktivasi bot ke tim kami', 'Kirim data ke WhatsApp +62 813-2531-210 untuk aktivasi bot'],
+          ['3', '💬', 'Minta aktivasi bot ke tim kami', 'Kirim data ke WhatsApp +62 813-2531-202 untuk aktivasi bot'],
           ['4', '🎉', 'Bot aktif — trial 100 pesan dimulai!', 'Bagikan nomor bot ke pelanggan dan biarkan AI bekerja 24 jam'],
         ].map(([num, icon, title, desc]) => `
         <div style="display:flex;gap:12px;padding:12px;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;">
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
       <p style="color:#374151;font-weight:700;margin:0 0 8px;font-size:14px;">Butuh bantuan?</p>
       <p style="color:#6b7280;font-size:13px;margin:0 0 12px;">Tim kami siap membantu kamu!</p>
       <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;">
-        <a href="https://wa.me/628132531210" style="color:#25d366;font-size:13px;font-weight:600;text-decoration:none;">💬 WhatsApp: +62 813-2531-210</a>
+        <a href="https://wa.me/628132531202" style="color:#25d366;font-size:13px;font-weight:600;text-decoration:none;">💬 WhatsApp: +62 813-2531-202</a>
         <a href="mailto:hello@mahirusaha.com" style="color:#25d366;font-size:13px;font-weight:600;text-decoration:none;">📧 hello@mahirusaha.com</a>
       </div>
       <p style="color:#9ca3af;font-size:11px;margin:12px 0 0;">Senin-Sabtu 08.00-21.00 WIB</p>

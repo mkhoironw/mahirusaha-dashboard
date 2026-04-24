@@ -248,7 +248,7 @@ export default function Dashboard() {
       setActiveStore(data)
       setShowTambahToko(false)
       setFormToko({ nama_toko: '', slug: '', nomor_wa_toko: '', kategori: '' })
-      alert('✅ Toko berhasil ditambahkan! Hubungi tim kami di +62 813-2531-210 untuk aktivasi bot WhatsApp.')
+      alert('✅ Toko berhasil ditambahkan! Hubungi tim kami di +62 813-2531-202 untuk aktivasi bot WhatsApp.')
     } catch (err) {
       alert('❌ Gagal tambah toko. Coba lagi.')
       console.error(err)
@@ -797,7 +797,7 @@ export default function Dashboard() {
                 </select>
               </div>
               <div style={{ background: 'rgba(239,159,39,0.08)', border: '1px solid rgba(239,159,39,0.2)', borderRadius: '10px', padding: '12px 14px' }}>
-                <p style={{ fontSize: '0.75rem', color: '#EF9F27', lineHeight: 1.6 }}>⚠️ Setelah tambah toko, hubungi tim kami di <strong>+62 813-2531-210</strong> untuk aktivasi bot WhatsApp toko ini.</p>
+                <p style={{ fontSize: '0.75rem', color: '#EF9F27', lineHeight: 1.6 }}>⚠️ Setelah tambah toko, hubungi tim kami di <strong>+62 813-2531-202</strong> untuk aktivasi bot WhatsApp toko ini.</p>
               </div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 <button onClick={() => setShowTambahToko(false)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>Batal</button>

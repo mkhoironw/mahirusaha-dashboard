@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       </a>
       <p style="color:rgba(255,255,255,0.35);font-size:12px;margin:8px 0 0;">
         Ada pertanyaan? Chat kami di
-        <a href="https://wa.me/628132531210" style="color:#25d366;text-decoration:none;">+62 813-2531-210</a>
+        <a href="https://wa.me/628132531202" style="color:#25d366;text-decoration:none;">+62 813-2531-202</a>
       </p>
     </div>
 

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         <p style="color:#92400e;font-weight:700;margin:0 0 12px;font-size:14px;">📋 Langkah yang mungkin terlewat:</p>
         ${[
           ['Siapkan SIM card baru', 'Beli SIM Telkomsel baru ~Rp 35rb khusus untuk bot. Jangan install WhatsApp!'],
-          ['Kirim data ke tim kami', 'Kirim nama toko, email, dan nomor WA bot ke +62 813-2531-210'],
+          ['Kirim data ke tim kami', 'Kirim nama toko, email, dan nomor WA bot ke +62 813-2531-202'],
           ['Balas kode OTP', 'Kamu akan menerima SMS kode OTP — segera kirim ke WhatsApp kami (berlaku 10 menit)'],
         ].map(([title, desc]) => `
         <div style="display:flex;gap:10px;margin-bottom:10px;padding:10px;background:#fff;border-radius:8px;">
@@ -57,10 +57,10 @@ export async function POST(request: NextRequest) {
       <!-- CTA Hubungi -->
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin-bottom:24px;text-align:center;">
         <p style="color:#166534;font-weight:700;margin:0 0 8px;font-size:14px;">💬 Hubungi tim kami sekarang</p>
-        <a href="https://wa.me/628132531210?text=Halo Mahirusaha, saya ${nama} ingin aktivasi bot tapi ada kendala." style="display:inline-block;background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:8px;">
+        <a href="https://wa.me/628132531202?text=Halo Mahirusaha, saya ${nama} ingin aktivasi bot tapi ada kendala." style="display:inline-block;background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:8px;">
           💬 Chat WhatsApp Sekarang
         </a>
-        <p style="color:#6b7280;font-size:12px;margin:8px 0 0;">+62 813-2531-210 · Senin-Sabtu 08.00-21.00 WIB</p>
+        <p style="color:#6b7280;font-size:12px;margin:8px 0 0;">+62 813-2531-202 · Senin-Sabtu 08.00-21.00 WIB</p>
       </div>
 
       <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:0;">

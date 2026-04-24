@@ -356,9 +356,9 @@ export default function Home() {
             <span style={{ fontSize:'1.5rem' }}>💡</span>
             <div style={{ flex:1 }}>
               <div style={{ fontWeight:700, fontSize:'.875rem', marginBottom:'4px' }}>Butuh bantuan setup?</div>
-              <div style={{ fontSize:'.78rem', color:'rgba(255,255,255,.5)' }}>Tim kami siap membantu via WhatsApp <strong style={{ color:'#25d366' }}>+62 813-2531-210</strong> · Senin-Sabtu 08.00-21.00 WIB</div>
+              <div style={{ fontSize:'.78rem', color:'rgba(255,255,255,.5)' }}>Tim kami siap membantu via WhatsApp <strong style={{ color:'#25d366' }}>+62 813-2531-202</strong> · Senin-Sabtu 08.00-21.00 WIB</div>
             </div>
-            <a href="https://wa.me/628132531210?text=Halo Mahirusaha, saya ingin tanya tentang aktivasi bot" target="_blank" rel="noopener noreferrer" style={{ background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'10px 20px', borderRadius:'10px', textDecoration:'none', fontWeight:700, fontSize:'.82rem', whiteSpace:'nowrap' }}>
+            <a href="https://wa.me/628132531202?text=Halo Mahirusaha, saya ingin tanya tentang aktivasi bot" target="_blank" rel="noopener noreferrer" style={{ background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'10px 20px', borderRadius:'10px', textDecoration:'none', fontWeight:700, fontSize:'.82rem', whiteSpace:'nowrap' }}>
               💬 Chat Sekarang
             </a>
           </div>

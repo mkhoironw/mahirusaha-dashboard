@@ -231,7 +231,7 @@ export default function Panduan() {
               <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg,#25d366,#128c7e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.85rem', flexShrink: 0 }}>2</div>
               <div>
                 <p style={{ fontWeight: 700, color: '#fff', marginBottom: '8px' }}>Kirim data ke tim Mahirusaha via WhatsApp</p>
-                <p style={{ marginBottom: '8px' }}>Kirim pesan ke <a href="https://wa.me/628132531210" target="_blank" rel="noopener noreferrer">+62 813-2531-210</a>:</p>
+                <p style={{ marginBottom: '8px' }}>Kirim pesan ke <a href="https://wa.me/628132531202" target="_blank" rel="noopener noreferrer">+62 813-2531-202</a>:</p>
                 <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '10px', padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.8 }}>
                   Halo Mahirusaha, saya ingin aktivasi bot.<br/>
                   Nama toko: [nama toko kamu]<br/>
@@ -450,7 +450,7 @@ export default function Panduan() {
             <div className="info-box" style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💬</div>
               <p style={{ fontWeight: 700, color: '#fff', marginBottom: '4px' }}>WhatsApp</p>
-              <a href="https://wa.me/628132531210" target="_blank" rel="noopener noreferrer" style={{ color: '#25d366', fontSize: '0.875rem' }}>+62 813-2531-210</a>
+              <a href="https://wa.me/628132531202" target="_blank" rel="noopener noreferrer" style={{ color: '#25d366', fontSize: '0.875rem' }}>+62 813-2531-202</a>
               <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px', marginBottom: 0 }}>Senin-Sabtu 08.00-21.00 WIB</p>
             </div>
             <div className="info-box" style={{ textAlign: 'center' }}>
