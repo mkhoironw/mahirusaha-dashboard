@@ -51,6 +51,7 @@ export default function Home() {
         @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
         @keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         @keyframes glow { 0%,100%{opacity:.5} 50%{opacity:1} }
+        @keyframes shimmer-badge { 0%,100%{opacity:1} 50%{opacity:.5} }
         .fadeUp { animation: fadeUp .7s ease forwards; }
         .fadeUp-2 { animation: fadeUp .7s .15s ease forwards; opacity:0; }
         .fadeUp-3 { animation: fadeUp .7s .3s ease forwards; opacity:0; }
@@ -241,11 +242,16 @@ export default function Home() {
               { icon:'🏷️', title:'White-label', desc:'Bot tampil dengan nama dan brand perusahaanmu. Pelanggan tidak tahu platform yang digunakan.', tag:'Enterprise' },
               { icon:'📊', title:'Analytics & Laporan', desc:'Dashboard real-time: jumlah chat, konversi, produk terpopuler, performa per agent.', tag:'Bisnis+' },
               { icon:'🔄', title:'Human Takeover', desc:'Ambil alih percakapan dari bot kapan saja. Sistem cerdas eskalasi otomatis ke agen manusia.', tag:'Semua Paket' },
+              { icon:'🛍️', title:'Sync ke Shopee & TikTok Shop', desc:'Sinkronisasi produk, stok, dan harga ke Shopee & TikTok Shop otomatis — semua marketplace dikelola dari satu dashboard. Tidak perlu buka-tutup aplikasi lagi.', tag:'Pro+', soon: true },
             ].map((f,i)=>(
               <div key={i} className="card-h" style={{ background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.07)', borderRadius:'16px', padding:'24px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'14px' }}>
                   <span style={{ fontSize:'1.6rem' }}>{f.icon}</span>
-                  <span style={{ fontSize:'.65rem', fontWeight:700, padding:'3px 8px', borderRadius:'100px', background: f.tag==='Enterprise'?'rgba(99,102,241,.15)':f.tag==='Semua Paket'?'rgba(37,211,102,.12)':'rgba(255,255,255,.08)', color: f.tag==='Enterprise'?'#818cf8':f.tag==='Semua Paket'?'#25d366':'rgba(255,255,255,.6)' }}>{f.tag}</span>
+                  {(f as any).soon ? (
+                    <span style={{ fontSize:'.6rem', fontWeight:800, padding:'3px 9px', borderRadius:'100px', background:'rgba(238,77,45,0.13)', color:'#FF7337', border:'1px solid rgba(238,77,45,0.3)', animation:'shimmer-badge 2.4s ease-in-out infinite', whiteSpace:'nowrap', letterSpacing:'.03em' }}>SEGERA HADIR</span>
+                  ) : (
+                    <span style={{ fontSize:'.65rem', fontWeight:700, padding:'3px 8px', borderRadius:'100px', background: f.tag==='Enterprise'?'rgba(99,102,241,.15)':f.tag==='Semua Paket'?'rgba(37,211,102,.12)':'rgba(255,255,255,.08)', color: f.tag==='Enterprise'?'#818cf8':f.tag==='Semua Paket'?'#25d366':'rgba(255,255,255,.6)' }}>{f.tag}</span>
+                  )}
                 </div>
                 <h3 style={{ fontWeight:700, fontSize:'.95rem', marginBottom:'8px' }}>{f.title}</h3>
                 <p style={{ color:'rgba(255,255,255,.45)', fontSize:'.82rem', lineHeight:1.65 }}>{f.desc}</p>
@@ -274,9 +280,9 @@ export default function Home() {
               { kode:'starter', name:'Starter', desc:'Untuk UMKM yang baru mulai', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
                 features:['1 Toko Online + Subdomain Gratis','1.000 pesan/bulan','AI Chatbot 24 jam','Katalog produk','Human Takeover','Referral program','Support email'] },
               { kode:'pro', name:'Pro', desc:'Untuk bisnis yang ingin tumbuh', color:'rgba(37,211,102,.07)', border:'rgba(37,211,102,.35)', popular:true,
-                features:['3 Toko Online + Subdomain Gratis','5.000 pesan/bulan','Semua fitur Starter','Broadcast & kampanye','CRM pelanggan','Laporan harian','Priority support'] },
+                features:['3 Toko Online + Subdomain Gratis','5.000 pesan/bulan','Semua fitur Starter','Broadcast & kampanye','CRM pelanggan','Laporan harian','Priority support',{text:'Sync Shopee & TikTok Shop',soon:true}] },
               { kode:'bisnis', name:'Bisnis', desc:'Untuk bisnis menengah', color:'rgba(255,255,255,.04)', border:'rgba(255,255,255,.09)', popular:false,
-                features:['10 Toko Online + Subdomain Gratis','20.000 pesan/bulan','Semua fitur Pro','Multi-agent CS','Analytics & laporan advanced','Dedicated support'] },
+                features:['10 Toko Online + Subdomain Gratis','20.000 pesan/bulan','Semua fitur Pro','Multi-agent CS','Analytics & laporan advanced','Dedicated support',{text:'Sync Shopee & TikTok Shop',soon:true}] },
               { kode:'enterprise', name:'Enterprise', desc:'Untuk perusahaan besar', color:'rgba(99,102,241,.07)', border:'rgba(99,102,241,.3)', popular:false,
                 features:['Unlimited Toko Online','Unlimited pesan','White-label','API integration','SLA 99.9%','Dedicated support','Custom integration'] },
             ].map((p)=>(
@@ -300,11 +306,17 @@ export default function Home() {
                   )}
                 </div>
                 <div style={{ flex:1, marginBottom:'20px' }}>
-                  {p.features.map(f=>(
-                    <div key={f} style={{ display:'flex', gap:'8px', fontSize:'.78rem', color:'rgba(255,255,255,.65)', marginBottom:'8px' }}>
-                      <span style={{ color: p.kode==='enterprise'?'#818cf8':'#25d366' }}>✓</span> {f}
-                    </div>
-                  ))}
+                  {p.features.map((f,fi)=>{
+                    const txt = typeof f==='object'?(f as any).text:f
+                    const soon = typeof f==='object'?(f as any).soon:false
+                    return (
+                      <div key={fi} style={{ display:'flex', gap:'8px', fontSize:'.78rem', color:'rgba(255,255,255,.65)', marginBottom:'8px', alignItems:'center' }}>
+                        <span style={{ color: p.kode==='enterprise'?'#818cf8':'#25d366', flexShrink:0 }}>✓</span>
+                        <span style={{ flex:1 }}>{txt}</span>
+                        {soon&&<span style={{ fontSize:'.58rem', fontWeight:800, padding:'2px 6px', borderRadius:'100px', background:'rgba(238,77,45,0.12)', color:'#FF7337', border:'1px solid rgba(238,77,45,0.25)', whiteSpace:'nowrap', flexShrink:0, animation:'shimmer-badge 2.4s ease-in-out infinite' }}>Segera</span>}
+                      </div>
+                    )
+                  })}
                 </div>
                 <a href={p.kode==='enterprise'?'#enterprise':'/daftar'} style={{ display:'block', textAlign:'center', background: p.kode==='enterprise'?'linear-gradient(135deg,#6366f1,#4f46e5)':p.popular?'linear-gradient(135deg,#25d366,#128c7e)':'rgba(255,255,255,.07)', color:'#fff', padding:'12px', borderRadius:'10px', textDecoration:'none', fontWeight:700, fontSize:'.82rem', border: (!p.popular&&p.kode!=='enterprise')?'1px solid rgba(255,255,255,.1)':'none' }}>
                   {p.kode==='enterprise'?'Hubungi Sales':'Mulai Gratis'}
