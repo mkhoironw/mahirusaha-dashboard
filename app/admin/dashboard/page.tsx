@@ -94,6 +94,8 @@ export default function AdminDashboard() {
   })
   const [editingStore, setEditingStore] = useState<string | null>(null)
   const [newNomorWA, setNewNomorWA] = useState('')
+  const [editingPhoneId, setEditingPhoneId] = useState<string | null>(null)
+  const [newPhoneId, setNewPhoneId] = useState('')
   const [saving, setSaving] = useState(false)
   const [searchKlien, setSearchKlien] = useState('')
   const [filterStatus, setFilterStatus] = useState('semua')
@@ -196,6 +198,18 @@ export default function AdminDashboard() {
       setStores(prev => prev.map(s => s.id === storeId ? { ...s, nomor_wa_toko: newNomorWA } : s))
       setEditingStore(null)
       setNewNomorWA('')
+    } catch (err) { console.error(err) }
+    finally { setSaving(false) }
+  }
+
+  const handleUpdatePhoneId = async (storeId: string) => {
+    if (!newPhoneId.trim()) return
+    setSaving(true)
+    try {
+      await supabase.from('stores').update({ wa_phone_number_id: newPhoneId }).eq('id', storeId)
+      setStores(prev => prev.map(s => s.id === storeId ? { ...s, wa_phone_number_id: newPhoneId } : s))
+      setEditingPhoneId(null)
+      setNewPhoneId('')
     } catch (err) { console.error(err) }
     finally { setSaving(false) }
   }
@@ -643,7 +657,12 @@ export default function AdminDashboard() {
                   <div key={s.id} style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1.5fr 0.8fr 1fr 1.2fr', gap: '12px', padding: '14px 16px', alignItems: 'center' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{s.nama_toko}</div>
-                      <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)' }}>{s.nomor_wa_toko}</div>
+                      <div>
+                        <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.6)' }}>{s.nomor_wa_toko}</div>
+                        {s.wa_phone_number_id && (
+                          <div style={{ fontSize: '0.68rem', color: 'rgba(129,140,248,0.7)', fontFamily: 'monospace', marginTop: '2px' }}>ID: {s.wa_phone_number_id}</div>
+                        )}
+                      </div>
                       <div>
                         <div style={{ fontSize: '0.78rem', marginBottom: '4px' }}>{s.pesan_terpakai} / {s.batas_pesan_bulan}</div>
                         <div style={{ height: '3px', background: 'rgba(255,255,255,0.08)', borderRadius: '100px', overflow: 'hidden' }}>
@@ -652,8 +671,9 @@ export default function AdminDashboard() {
                       </div>
                       <div style={{ fontSize: '0.75rem', color: s.is_trial ? '#EF9F27' : 'rgba(255,255,255,0.4)' }}>{s.is_trial ? 'Trial' : 'Paid'}</div>
                       <div style={{ fontSize: '0.78rem', color: s.aktif ? '#25d366' : '#EF4444', fontWeight: 600 }}>{s.aktif ? '🟢 Aktif' : '🔴 Mati'}</div>
-                      <div>
-                        <button className="btn-a" onClick={() => { setEditingStore(s.id); setNewNomorWA(s.nomor_wa_toko) }} style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Ganti Nomor</button>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button className="btn-a" onClick={() => { setEditingStore(s.id); setNewNomorWA(s.nomor_wa_toko); setEditingPhoneId(null) }} style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit' }}>✏️ Ganti Nomor</button>
+                        <button className="btn-a" onClick={() => { setEditingPhoneId(s.id); setNewPhoneId(s.wa_phone_number_id || ''); setEditingStore(null) }} style={{ fontSize: '0.72rem', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(129,140,248,0.3)', background: 'transparent', color: '#818cf8', cursor: 'pointer', fontFamily: 'inherit' }}>📱 Phone ID</button>
                       </div>
                     </div>
                     {editingStore === s.id && (
@@ -661,6 +681,16 @@ export default function AdminDashboard() {
                         <input style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(37,211,102,0.3)', color: '#fff', padding: '9px 12px', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="628xxxxxxxxxx" value={newNomorWA} onChange={e => setNewNomorWA(e.target.value)} />
                         <button onClick={() => handleUpdateNomorWA(s.id)} disabled={saving} style={{ padding: '9px 16px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>{saving ? '...' : 'Simpan'}</button>
                         <button onClick={() => setEditingStore(null)} style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}>Batal</button>
+                      </div>
+                    )}
+                    {editingPhoneId === s.id && (
+                      <div style={{ padding: '0 16px 16px' }}>
+                        <div style={{ fontSize: '0.68rem', color: '#818cf8', fontWeight: 700, marginBottom: '6px' }}>📱 wa_phone_number_id — dari Meta Business / WhatsApp Cloud API</div>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <input style={{ flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(129,140,248,0.4)', color: '#fff', padding: '9px 12px', borderRadius: '8px', fontSize: '0.875rem', fontFamily: 'inherit', outline: 'none' }} placeholder="Contoh: 123456789012345" value={newPhoneId} onChange={e => setNewPhoneId(e.target.value)} />
+                          <button onClick={() => handleUpdatePhoneId(s.id)} disabled={saving || !newPhoneId.trim()} style={{ padding: '9px 16px', borderRadius: '8px', border: 'none', background: saving || !newPhoneId.trim() ? 'rgba(129,140,248,0.3)' : 'linear-gradient(135deg,#818cf8,#6366f1)', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: saving || !newPhoneId.trim() ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>{saving ? '...' : 'Simpan'}</button>
+                          <button onClick={() => { setEditingPhoneId(null); setNewPhoneId('') }} style={{ padding: '9px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontFamily: 'inherit' }}>Batal</button>
+                        </div>
                       </div>
                     )}
                   </div>
