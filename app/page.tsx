@@ -81,6 +81,7 @@ export default function Home() {
           .ent-grid{grid-template-columns:1fr!important}
           .hide-mob{display:none!important}
           .partner-grid{grid-template-columns:1fr!important}
+          .demo-grid{grid-template-columns:1fr!important}
         }
       `}</style>
 
@@ -361,6 +362,44 @@ export default function Home() {
             <a href="https://wa.me/628132531202?text=Halo Mahirusaha, saya ingin tanya tentang aktivasi bot" target="_blank" rel="noopener noreferrer" style={{ background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'10px 20px', borderRadius:'10px', textDecoration:'none', fontWeight:700, fontSize:'.82rem', whiteSpace:'nowrap' }}>
               💬 Chat Sekarang
             </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== DEMO CHATBOT ===== */}
+      <section id="demo" style={{ padding:'80px 5%' }}>
+        <div style={{ maxWidth:'1000px', margin:'0 auto' }}>
+          <div style={{ textAlign:'center', marginBottom:'50px' }}>
+            <div style={{ display:'inline-block', background:'rgba(37,211,102,.1)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'100px', padding:'5px 14px', marginBottom:'14px', color:'#25d366', fontSize:'.78rem', fontWeight:700 }}>DEMO BOT</div>
+            <h2 style={{ fontSize:'2.2rem', fontWeight:800, letterSpacing:'-.5px' }}>Coba Bot Langsung di WhatsApp</h2>
+            <p style={{ color:'rgba(255,255,255,.45)', fontSize:'.875rem', marginTop:'10px' }}>Chat sekarang dengan bot demo kami — rasakan pengalaman yang akan dimiliki pelanggan tokomu</p>
+          </div>
+          <div className="demo-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'24px' }}>
+
+            {/* Card 1: Bot Mahirusaha */}
+            <div className="card-h" style={{ background:'rgba(37,211,102,.06)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'20px', padding:'32px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+              <div style={{ width:'68px', height:'68px', borderRadius:'18px', background:'linear-gradient(135deg,#25d366,#128c7e)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2rem', marginBottom:'16px', boxShadow:'0 8px 24px rgba(37,211,102,.3)' }}>🤖</div>
+              <div style={{ display:'inline-block', background:'rgba(37,211,102,.12)', border:'1px solid rgba(37,211,102,.25)', borderRadius:'100px', padding:'3px 12px', marginBottom:'12px', color:'#25d366', fontSize:'.72rem', fontWeight:700, letterSpacing:'.05em' }}>BOT RESMI</div>
+              <h3 style={{ fontSize:'1.2rem', fontWeight:800, marginBottom:'8px' }}>Bot Mahirusaha</h3>
+              <p style={{ color:'rgba(255,255,255,.5)', fontSize:'.83rem', lineHeight:1.65, marginBottom:'24px' }}>Tanya seputar produk, harga paket, cara daftar, dan fitur-fitur Mahirusaha langsung ke bot kami</p>
+              <a href="https://wa.me/628132531210?text=Halo%2C%20saya%20ingin%20coba%20demo%20bot%20Mahirusaha" target="_blank" rel="noopener noreferrer" style={{ background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'12px 28px', borderRadius:'12px', textDecoration:'none', fontWeight:700, fontSize:'.875rem', display:'inline-flex', alignItems:'center', gap:'8px', whiteSpace:'nowrap' }}>
+                💬 Chat Sekarang
+              </a>
+              <p style={{ color:'rgba(255,255,255,.3)', fontSize:'.73rem', marginTop:'12px' }}>+62 813-2531-210</p>
+            </div>
+
+            {/* Card 2: Warung Bu Sari */}
+            <div className="card-h" style={{ background:'rgba(37,211,102,.06)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'20px', padding:'32px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+              <div style={{ width:'68px', height:'68px', borderRadius:'18px', background:'linear-gradient(135deg,#25d366,#128c7e)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2rem', marginBottom:'16px', boxShadow:'0 8px 24px rgba(37,211,102,.3)' }}>🏪</div>
+              <div style={{ display:'inline-block', background:'rgba(37,211,102,.12)', border:'1px solid rgba(37,211,102,.25)', borderRadius:'100px', padding:'3px 12px', marginBottom:'12px', color:'#25d366', fontSize:'.72rem', fontWeight:700, letterSpacing:'.05em' }}>CONTOH TOKO</div>
+              <h3 style={{ fontSize:'1.2rem', fontWeight:800, marginBottom:'8px' }}>Warung Bu Sari</h3>
+              <p style={{ color:'rgba(255,255,255,.5)', fontSize:'.83rem', lineHeight:1.65, marginBottom:'24px' }}>Toko demo nyata — pesan produk, tanya stok, dan lihat langsung cara bot melayani pelanggan tokomu</p>
+              <a href="https://wa.me/628135755807?text=Halo%2C%20saya%20mau%20pesan" target="_blank" rel="noopener noreferrer" style={{ background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'12px 28px', borderRadius:'12px', textDecoration:'none', fontWeight:700, fontSize:'.875rem', display:'inline-flex', alignItems:'center', gap:'8px', whiteSpace:'nowrap' }}>
+                💬 Chat Sekarang
+              </a>
+              <p style={{ color:'rgba(255,255,255,.3)', fontSize:'.73rem', marginTop:'12px' }}>+62 813-5755-807</p>
+            </div>
+
           </div>
         </div>
       </section>
