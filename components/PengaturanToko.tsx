@@ -34,6 +34,8 @@ interface Store {
   batas_pesan_bulan: number
   onboarding_selesai: boolean
   slug: string
+  logo_url?: string
+  tema_warna?: string
 }
 
 interface PengaturanTokoProps {
@@ -64,10 +66,71 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
 
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [activeTab, setActiveTab] = useState('info')
+  const [activeTab, setActiveTab] = useState('tampilan')
+  const [logoUrl, setLogoUrl] = useState(store.logo_url || '')
+  const [temaWarna, setTemaWarna] = useState(store.tema_warna || '')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
 
   const update = (field: string, value: string | boolean) =>
     setForm(p => ({ ...p, [field]: value }))
+
+  const extractDominantColor = (file: File): Promise<string> =>
+    new Promise((resolve) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = 50; canvas.height = 50
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { URL.revokeObjectURL(url); resolve('#25d366'); return }
+        ctx.drawImage(img, 0, 0, 50, 50)
+        const data = ctx.getImageData(0, 0, 50, 50).data
+        let r = 0, g = 0, b = 0, count = 0
+        for (let i = 0; i < data.length; i += 4) {
+          const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3
+          if (brightness > 30 && brightness < 230) {
+            r += data[i]; g += data[i + 1]; b += data[i + 2]; count++
+          }
+        }
+        URL.revokeObjectURL(url)
+        if (count === 0) { resolve('#25d366'); return }
+        resolve('#' +
+          Math.round(r / count).toString(16).padStart(2, '0') +
+          Math.round(g / count).toString(16).padStart(2, '0') +
+          Math.round(b / count).toString(16).padStart(2, '0'))
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); resolve('#25d366') }
+      img.src = url
+    })
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) { alert('Ukuran file maksimal 2MB'); return }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      alert('Format harus JPG, PNG, atau WebP'); return
+    }
+    setUploadingLogo(true)
+    try {
+      const ext = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'
+      const path = `${store.id}/logo.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('store-logos')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage.from('store-logos').getPublicUrl(path)
+      const publicUrl = urlData.publicUrl
+      const warna = await extractDominantColor(file)
+      await supabase.from('stores').update({ logo_url: publicUrl, tema_warna: warna }).eq('id', store.id)
+      setLogoUrl(publicUrl)
+      setTemaWarna(warna)
+      onUpdate({ ...store, ...form, logo_url: publicUrl, tema_warna: warna })
+    } catch (err) {
+      console.error(err)
+      alert('Gagal upload logo. Coba lagi.')
+    }
+    setUploadingLogo(false)
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -120,6 +183,7 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
   }
 
   const tabs = [
+    { id: 'tampilan', label: '🎨 Logo & Tema' },
     { id: 'info', label: '🏪 Info Toko' },
     { id: 'operasional', label: '🕐 Operasional' },
     { id: 'bot', label: '🤖 Pengaturan Bot' },
@@ -179,6 +243,67 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
           </button>
         ))}
       </div>
+
+      {/* Tab: Logo & Tema */}
+      {activeTab === 'tampilan' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+          {/* Logo upload */}
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px' }}>
+            <p style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '16px' }}>📸 Logo Toko</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+              {/* Avatar preview */}
+              <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.08)', border: '2px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>
+                {logoUrl
+                  ? <img src={logoUrl} alt="Logo toko" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : '🏪'}
+              </div>
+
+              {/* Upload info */}
+              <div style={{ flex: 1, minWidth: '180px' }}>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginBottom: '12px', lineHeight: 1.5 }}>
+                  Format JPG, PNG, atau WebP. Maks. 2MB.<br />
+                  Ditampilkan sebagai avatar di halaman toko online.
+                </p>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: uploadingLogo ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '10px 18px', cursor: uploadingLogo ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s' }}>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} disabled={uploadingLogo} style={{ display: 'none' }} />
+                  {uploadingLogo ? '⏳ Mengupload...' : '📤 Upload Logo'}
+                </label>
+                {logoUrl && !uploadingLogo && (
+                  <p style={{ fontSize: '0.72rem', color: '#25d366', marginTop: '8px' }}>✅ Logo berhasil diupload</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tema warna */}
+          {temaWarna ? (
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px' }}>
+              <p style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '16px' }}>🎨 Tema Warna Otomatis</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '14px', background: temaWarna, boxShadow: `0 4px 20px ${temaWarna}60`, flexShrink: 0 }} />
+                  <div style={{ width: '64px', height: '64px', borderRadius: '14px', background: `linear-gradient(135deg,${temaWarna},${temaWarna}99)`, flexShrink: 0 }} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.05em', color: temaWarna }}>{temaWarna}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+                    Warna diekstrak otomatis dari logo. Diterapkan di header &amp; tombol halaman toko online.
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '32px', textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '10px' }}>🎨</div>
+              <p style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>
+                Upload logo toko untuk mengaktifkan tema warna otomatis.<br />
+                Warna dominan logo akan digunakan sebagai tema di halaman toko online kamu.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab: Info Toko */}
       {activeTab === 'info' && (

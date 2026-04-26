@@ -6,6 +6,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+function darkenHex(hex: string, factor = 0.6): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return '#' +
+    Math.round(r * factor).toString(16).padStart(2, '0') +
+    Math.round(g * factor).toString(16).padStart(2, '0') +
+    Math.round(b * factor).toString(16).padStart(2, '0')
+}
+
 const RESERVED_SLUGS = [
   'dashboard', 'masuk', 'daftar', 'admin',
   'privasi', 'syarat', 'api', 'reset-password'
@@ -37,6 +47,9 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
 
   const produkList = products || []
 
+  const primaryColor = (store as any).tema_warna || '#25d366'
+  const primaryDark = darkenHex(primaryColor, 0.6)
+
   // Kategori unik
   const kategoriList = Array.from(new Set(produkList.map((p: any) => p.kategori).filter(Boolean)))
 
@@ -57,11 +70,13 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
       `}</style>
 
       {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg,#25d366,#128c7e)', padding: '32px 5%', color: '#fff' }}>
+      <div style={{ background: `linear-gradient(135deg,${primaryColor},${primaryDark})`, padding: '32px 5%', color: '#fff' }}>
         <div style={{ maxWidth: '960px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <div style={{ width: '72px', height: '72px', borderRadius: '18px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem', flexShrink: 0 }}>
-              🏪
+            <div style={{ width: '72px', height: '72px', borderRadius: '50%', overflow: 'hidden', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.2rem', flexShrink: 0 }}>
+              {(store as any).logo_url
+                ? <img src={(store as any).logo_url} alt={store.nama_toko} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : '🏪'}
             </div>
             <div style={{ flex: 1 }}>
               <h1 style={{ fontSize: '1.7rem', fontWeight: 800, marginBottom: '6px' }}>{store.nama_toko}</h1>
@@ -81,7 +96,7 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
               target="_blank"
               rel="noopener noreferrer"
               className="btn-wa"
-              style={{ background: '#fff', color: '#128c7e', padding: '12px 22px', borderRadius: '12px', textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
+              style={{ background: '#fff', color: primaryDark, padding: '12px 22px', borderRadius: '12px', textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}
             >
               💬 Chat WA
             </a>
@@ -127,7 +142,7 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
               href={`https://wa.me/${store.nomor_wa_toko}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: 'inline-block', background: '#25d366', color: '#fff', padding: '11px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700 }}
+              style={{ display: 'inline-block', background: primaryColor, color: '#fff', padding: '11px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700 }}
             >
               💬 Tanya via WhatsApp
             </a>
@@ -178,7 +193,7 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
                           Rp {produk.harga_coret?.toLocaleString('id-ID')}
                         </div>
                       )}
-                      <div style={{ fontWeight: 800, fontSize: '1rem', color: '#25d366' }}>
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: primaryColor }}>
                         Rp {produk.harga?.toLocaleString('id-ID') || '0'}
                       </div>
                       <div style={{ fontSize: '0.68rem', color: produk.stok_tidak_terbatas ? '#16a34a' : produk.stok > 0 ? '#6b7280' : '#ef4444', marginTop: '1px' }}>
@@ -191,7 +206,7 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
                       rel="noopener noreferrer"
                       className="btn-wa"
                       style={{
-                        background: (!produk.stok_tidak_terbatas && produk.stok === 0) ? '#e5e7eb' : '#25d366',
+                        background: (!produk.stok_tidak_terbatas && produk.stok === 0) ? '#e5e7eb' : primaryColor,
                         color: (!produk.stok_tidak_terbatas && produk.stok === 0) ? '#9ca3af' : '#fff',
                         padding: '9px 16px',
                         borderRadius: '10px',
@@ -214,7 +229,7 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
         <div style={{ marginTop: '48px', paddingTop: '24px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <p style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
             Powered by{' '}
-            <a href="https://mahirusaha.com" style={{ color: '#25d366', textDecoration: 'none', fontWeight: 600 }}>
+            <a href="https://mahirusaha.com" style={{ color: primaryColor, textDecoration: 'none', fontWeight: 600 }}>
               Mahirusaha
             </a>
           </p>
@@ -222,7 +237,7 @@ export default async function TokoPage({ params }: { params: Promise<{ slug: str
             href={`https://wa.me/${store.nomor_wa_toko}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ background: '#25d366', color: '#fff', padding: '10px 20px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem' }}
+            style={{ background: primaryColor, color: '#fff', padding: '10px 20px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem' }}
           >
             💬 Hubungi Kami
           </a>
