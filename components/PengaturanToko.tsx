@@ -70,6 +70,7 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
   const [logoUrl, setLogoUrl] = useState(store.logo_url || '')
   const [temaWarna, setTemaWarna] = useState(store.tema_warna || '')
   const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [deletingLogo, setDeletingLogo] = useState(false)
 
   const update = (field: string, value: string | boolean) =>
     setForm(p => ({ ...p, [field]: value }))
@@ -130,6 +131,25 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
       alert('Gagal upload logo. Coba lagi.')
     }
     setUploadingLogo(false)
+  }
+
+  const handleLogoDelete = async () => {
+    if (!logoUrl) return
+    if (!confirm('Hapus logo toko? Tema warna juga akan direset ke hijau default.')) return
+    setDeletingLogo(true)
+    try {
+      const ext = logoUrl.split('/').pop()?.split('.').pop()?.split('?')[0] || 'jpg'
+      const path = `${store.id}/logo.${ext}`
+      await supabase.storage.from('store-logos').remove([path])
+      await supabase.from('stores').update({ logo_url: null, tema_warna: null }).eq('id', store.id)
+      setLogoUrl('')
+      setTemaWarna('')
+      onUpdate({ ...store, ...form, logo_url: undefined, tema_warna: undefined })
+    } catch (err) {
+      console.error(err)
+      alert('Gagal menghapus logo. Coba lagi.')
+    }
+    setDeletingLogo(false)
   }
 
   const handleSave = async () => {
@@ -265,12 +285,23 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
                   Format JPG, PNG, atau WebP. Maks. 2MB.<br />
                   Ditampilkan sebagai avatar di halaman toko online.
                 </p>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: uploadingLogo ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '10px 18px', cursor: uploadingLogo ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s' }}>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} disabled={uploadingLogo} style={{ display: 'none' }} />
-                  {uploadingLogo ? '⏳ Mengupload...' : '📤 Upload Logo'}
-                </label>
-                {logoUrl && !uploadingLogo && (
-                  <p style={{ fontSize: '0.72rem', color: '#25d366', marginTop: '8px' }}>✅ Logo berhasil diupload</p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: uploadingLogo ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', padding: '10px 18px', cursor: (uploadingLogo || deletingLogo) ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s', opacity: deletingLogo ? 0.5 : 1 }}>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLogoUpload} disabled={uploadingLogo || deletingLogo} style={{ display: 'none' }} />
+                    {uploadingLogo ? '⏳ Mengupload...' : '📤 Upload Logo'}
+                  </label>
+                  {logoUrl && (
+                    <button
+                      onClick={handleLogoDelete}
+                      disabled={deletingLogo || uploadingLogo}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', padding: '10px 18px', cursor: (deletingLogo || uploadingLogo) ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, color: '#f87171', fontFamily: 'inherit', transition: 'all 0.2s' }}
+                    >
+                      {deletingLogo ? '⏳ Menghapus...' : '🗑️ Hapus Logo'}
+                    </button>
+                  )}
+                </div>
+                {logoUrl && !uploadingLogo && !deletingLogo && (
+                  <p style={{ fontSize: '0.72rem', color: '#25d366', marginTop: '8px' }}>✅ Logo aktif</p>
                 )}
               </div>
             </div>
