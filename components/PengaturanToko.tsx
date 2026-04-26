@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -71,6 +71,14 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
   const [temaWarna, setTemaWarna] = useState(store.tema_warna || '')
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const [deletingLogo, setDeletingLogo] = useState(false)
+  const [logoTimestamp, setLogoTimestamp] = useState(() => Date.now())
+
+  // Sync logo state when switching between stores
+  useEffect(() => {
+    setLogoUrl(store.logo_url || '')
+    setTemaWarna(store.tema_warna || '')
+    setLogoTimestamp(Date.now())
+  }, [store.id])
 
   const update = (field: string, value: string | boolean) =>
     setForm(p => ({ ...p, [field]: value }))
@@ -125,6 +133,7 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
       await supabase.from('stores').update({ logo_url: publicUrl, tema_warna: warna }).eq('id', store.id)
       setLogoUrl(publicUrl)
       setTemaWarna(warna)
+      setLogoTimestamp(Date.now())
       onUpdate({ ...store, ...form, logo_url: publicUrl, tema_warna: warna })
     } catch (err) {
       console.error(err)
@@ -275,7 +284,7 @@ export default function PengaturanToko({ store, onUpdate }: PengaturanTokoProps)
               {/* Avatar preview */}
               <div style={{ width: '96px', height: '96px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, background: 'rgba(255,255,255,0.08)', border: '2px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>
                 {logoUrl
-                  ? <img src={logoUrl} alt="Logo toko" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ? <img src={`${logoUrl}?t=${logoTimestamp}`} alt="Logo toko" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   : '🏪'}
               </div>
 
