@@ -6,6 +6,9 @@ export default function Home() {
   const [billing, setBilling] = useState<'bulanan' | 'tahunan'>('bulanan')
   const [formEnterprise, setFormEnterprise] = useState({ nama: '', perusahaan: '', email: '', wa: '', kebutuhan: '' })
   const [formStatus, setFormStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [hppData, setHppData] = useState({ namaProduk:'', kategori:'kuliner', tenaga:'', overheadGas:'', overheadSewa:'', overheadLain:'', packaging:'', target:'100' })
+  const [hppBahan, setHppBahan] = useState([{ nama:'', jumlah:'', satuan:'gram', harga:'' }])
+  const [hppShowResult, setHppShowResult] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
@@ -36,6 +39,13 @@ export default function Home() {
   }
 
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
+
+  const hppBahanTotal = hppBahan.reduce((s,b)=>s+(parseFloat(b.jumlah)||0)*(parseFloat(b.harga)||0),0)
+  const hppTenagaNum = parseFloat(hppData.tenaga)||0
+  const hppOverheadTotal = (parseFloat(hppData.overheadGas)||0)+(parseFloat(hppData.overheadSewa)||0)+(parseFloat(hppData.overheadLain)||0)
+  const hppPackagingNum = parseFloat(hppData.packaging)||0
+  const hppTargetNum = parseInt(hppData.target)||100
+  const hppPerUnit = hppBahanTotal+hppTenagaNum+hppOverheadTotal+hppPackagingNum
 
   return (
     <main style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", background: '#070d1a', color: '#fff', minHeight: '100vh', overflowX: 'hidden' }}>
@@ -82,7 +92,17 @@ export default function Home() {
           .hide-mob{display:none!important}
           .partner-grid{grid-template-columns:1fr!important}
           .demo-grid{grid-template-columns:1fr!important}
+          .hpp-bahan-grid{grid-template-columns:1fr 1fr 32px!important}
+          .hpp-bahan-head{display:none!important}
+          .hpp-hide-mob{display:none!important}
+          .hpp-scenario-grid{grid-template-columns:1fr!important}
         }
+        .hpp-bahan-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr 1fr 32px;gap:8px;align-items:center}
+        .hpp-bahan-head{display:grid;grid-template-columns:2fr 1fr 1fr 1.5fr 1fr 32px;gap:8px;padding:0 4px;margin-bottom:8px}
+        .hpp-scenario-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+        .hpp-tooltip-wrap{position:relative;display:inline-block}
+        .hpp-tooltip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);padding:5px 10px;border-radius:8px;font-size:.65rem;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10}
+        .hpp-tooltip-wrap:hover .hpp-tooltip{opacity:1}
       `}</style>
 
       {/* NAV */}
@@ -401,6 +421,235 @@ export default function Home() {
             </div>
 
           </div>
+        </div>
+      </section>
+
+      {/* ===== KALKULATOR HPP ===== */}
+      <section id="kalkulator-hpp" style={{ padding:'80px 5%', background:'rgba(255,255,255,.015)' }}>
+        <div style={{ maxWidth:'1000px', margin:'0 auto' }}>
+          <div style={{ textAlign:'center', marginBottom:'50px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', marginBottom:'14px' }}>
+              <div style={{ display:'inline-block', background:'rgba(37,211,102,.1)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'100px', padding:'5px 14px', color:'#25d366', fontSize:'.78rem', fontWeight:700 }}>KALKULATOR HPP</div>
+              <div style={{ background:'#25d366', color:'#070d1a', borderRadius:'100px', padding:'4px 12px', fontSize:'.68rem', fontWeight:800, letterSpacing:'.04em' }}>GRATIS</div>
+            </div>
+            <h2 style={{ fontSize:'2.2rem', fontWeight:800, letterSpacing:'-.5px' }}>Hitung Harga Pokok Produksimu</h2>
+            <p style={{ color:'rgba(255,255,255,.45)', fontSize:'.875rem', marginTop:'10px' }}>Ketahui HPP, tentukan harga jual yang tepat, dan pastikan bisnismu selalu untung</p>
+          </div>
+
+          {/* Form Input */}
+          <div style={{ background:'rgba(255,255,255,.03)', border:'1px solid rgba(37,211,102,.15)', borderRadius:'24px', padding:'36px', marginBottom:'20px' }}>
+
+            {/* Nama & Kategori */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'28px' }} className="demo-grid">
+              <div>
+                <label style={{ display:'block', fontSize:'.78rem', fontWeight:700, color:'rgba(255,255,255,.6)', marginBottom:'8px', letterSpacing:'.03em' }}>NAMA PRODUK</label>
+                <input className="input-f" placeholder="Contoh: Nasi Kotak Ayam Bakar" value={hppData.namaProduk} onChange={e=>setHppData(p=>({...p,namaProduk:e.target.value}))} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'.78rem', fontWeight:700, color:'rgba(255,255,255,.6)', marginBottom:'8px', letterSpacing:'.03em' }}>KATEGORI BISNIS</label>
+                <select className="input-f" value={hppData.kategori} onChange={e=>setHppData(p=>({...p,kategori:e.target.value}))} style={{ cursor:'pointer' }}>
+                  {[['kuliner','🍽️ Kuliner / Makanan & Minuman'],['fashion','👗 Fashion / Pakaian'],['kerajinan','🎨 Kerajinan Tangan'],['jasa','💼 Jasa / Layanan'],['digital','💻 Produk Digital'],['lainnya','📦 Lainnya']].map(([v,l])=>(
+                    <option key={v} value={v} style={{ background:'#111827' }}>{l}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Tabel Bahan Baku */}
+            <div style={{ marginBottom:'28px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+                <label style={{ fontSize:'.78rem', fontWeight:700, color:'rgba(255,255,255,.6)', letterSpacing:'.03em' }}>BAHAN BAKU / KOMPONEN PRODUK</label>
+                <button onClick={()=>setHppBahan(p=>[...p,{nama:'',jumlah:'',satuan:'gram',harga:''}])} style={{ background:'rgba(37,211,102,.12)', border:'1px solid rgba(37,211,102,.3)', color:'#25d366', padding:'6px 14px', borderRadius:'8px', fontSize:'.75rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>+ Tambah Bahan</button>
+              </div>
+              <div className="hpp-bahan-head">
+                {['Nama Bahan / Komponen','Jumlah','Satuan','Harga per Satuan (Rp)','Subtotal',''].map(h=>(
+                  <div key={h} style={{ fontSize:'.65rem', fontWeight:700, color:'rgba(255,255,255,.35)', letterSpacing:'.05em' }}>{h}</div>
+                ))}
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                {hppBahan.map((b,i)=>{
+                  const sub=(parseFloat(b.jumlah)||0)*(parseFloat(b.harga)||0)
+                  return (
+                    <div key={i} className="hpp-bahan-grid">
+                      <input className="input-f" placeholder="Tepung terigu, ayam, dll" value={b.nama} onChange={e=>setHppBahan(p=>p.map((x,j)=>j===i?{...x,nama:e.target.value}:x))} style={{ fontSize:'.82rem', padding:'10px 12px' }}/>
+                      <input className="input-f" type="number" min="0" placeholder="500" value={b.jumlah} onChange={e=>setHppBahan(p=>p.map((x,j)=>j===i?{...x,jumlah:e.target.value}:x))} style={{ fontSize:'.82rem', padding:'10px 12px' }}/>
+                      <select className="input-f hpp-hide-mob" value={b.satuan} onChange={e=>setHppBahan(p=>p.map((x,j)=>j===i?{...x,satuan:e.target.value}:x))} style={{ fontSize:'.82rem', padding:'10px 12px', cursor:'pointer' }}>
+                        {['gram','kg','ml','liter','buah','pcs','lembar','meter','porsi','bungkus'].map(s=>(
+                          <option key={s} value={s} style={{ background:'#111827' }}>{s}</option>
+                        ))}
+                      </select>
+                      <div className="hpp-hide-mob" style={{ position:'relative' }}>
+                        <span style={{ position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', fontSize:'.72rem', color:'rgba(255,255,255,.3)', pointerEvents:'none' }}>Rp</span>
+                        <input className="input-f" type="number" min="0" placeholder="5000" value={b.harga} onChange={e=>setHppBahan(p=>p.map((x,j)=>j===i?{...x,harga:e.target.value}:x))} style={{ fontSize:'.82rem', padding:'10px 12px 10px 30px' }}/>
+                      </div>
+                      <div className="hpp-hide-mob" style={{ fontSize:'.82rem', fontWeight:700, color:sub>0?'#25d366':'rgba(255,255,255,.2)', padding:'10px 4px' }}>
+                        {sub>0?fmt(Math.round(sub)):'—'}
+                      </div>
+                      <button onClick={()=>setHppBahan(p=>p.length>1?p.filter((_,j)=>j!==i):p)} style={{ background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.1)', color:'rgba(255,255,255,.4)', width:'32px', height:'32px', borderRadius:'8px', cursor:'pointer', fontFamily:'inherit', fontSize:'1.1rem', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ marginTop:'10px', padding:'10px 16px', background:'rgba(37,211,102,.05)', borderRadius:'10px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:'.78rem', color:'rgba(255,255,255,.45)' }}>Total biaya bahan baku per unit</span>
+                <span style={{ fontSize:'.9rem', fontWeight:800, color:'#25d366' }}>{hppBahanTotal>0?fmt(Math.round(hppBahanTotal)):'Rp 0'}</span>
+              </div>
+            </div>
+
+            {/* Tenaga & Packaging */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px', marginBottom:'28px' }} className="demo-grid">
+              <div>
+                <label style={{ display:'block', fontSize:'.78rem', fontWeight:700, color:'rgba(255,255,255,.6)', marginBottom:'8px', letterSpacing:'.03em' }}>BIAYA TENAGA KERJA (per unit)</label>
+                <div style={{ position:'relative' }}>
+                  <span style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', fontSize:'.8rem', color:'rgba(255,255,255,.3)', pointerEvents:'none' }}>Rp</span>
+                  <input className="input-f" type="number" min="0" placeholder="Contoh: 3000" value={hppData.tenaga} onChange={e=>setHppData(p=>({...p,tenaga:e.target.value}))} style={{ paddingLeft:'36px' }}/>
+                </div>
+                <p style={{ fontSize:'.68rem', color:'rgba(255,255,255,.3)', marginTop:'4px' }}>Upah produksi, ongkos jasa, dll</p>
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'.78rem', fontWeight:700, color:'rgba(255,255,255,.6)', marginBottom:'8px', letterSpacing:'.03em' }}>BIAYA PACKAGING (per unit)</label>
+                <div style={{ position:'relative' }}>
+                  <span style={{ position:'absolute', left:'12px', top:'50%', transform:'translateY(-50%)', fontSize:'.8rem', color:'rgba(255,255,255,.3)', pointerEvents:'none' }}>Rp</span>
+                  <input className="input-f" type="number" min="0" placeholder="Contoh: 2000" value={hppData.packaging} onChange={e=>setHppData(p=>({...p,packaging:e.target.value}))} style={{ paddingLeft:'36px' }}/>
+                </div>
+                <p style={{ fontSize:'.68rem', color:'rgba(255,255,255,.3)', marginTop:'4px' }}>Plastik, kotak, label, stiker, dll</p>
+              </div>
+            </div>
+
+            {/* Overhead */}
+            <div style={{ marginBottom:'28px' }}>
+              <label style={{ display:'block', fontSize:'.78rem', fontWeight:700, color:'rgba(255,255,255,.6)', marginBottom:'12px', letterSpacing:'.03em' }}>BIAYA OVERHEAD (per unit)</label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px' }}>
+                {[['overheadGas','⚡ Gas / Listrik','500'],['overheadSewa','🏠 Sewa / Tempat','1000'],['overheadLain','📦 Lainnya','500']].map(([key,label,ph])=>(
+                  <div key={key}>
+                    <p style={{ fontSize:'.72rem', color:'rgba(255,255,255,.4)', marginBottom:'6px' }}>{label}</p>
+                    <div style={{ position:'relative' }}>
+                      <span style={{ position:'absolute', left:'10px', top:'50%', transform:'translateY(-50%)', fontSize:'.72rem', color:'rgba(255,255,255,.3)', pointerEvents:'none' }}>Rp</span>
+                      <input className="input-f" type="number" min="0" placeholder={ph} value={hppData[key as keyof typeof hppData]} onChange={e=>{ const k=key as keyof typeof hppData; setHppData(p=>({...p,[k]:e.target.value})) }} style={{ padding:'10px 12px 10px 30px', fontSize:'.82rem' }}/>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Target Produksi */}
+            <div style={{ marginBottom:'28px' }}>
+              <label style={{ display:'block', fontSize:'.78rem', fontWeight:700, color:'rgba(255,255,255,.6)', marginBottom:'8px', letterSpacing:'.03em' }}>TARGET PRODUKSI PER BULAN</label>
+              <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' }}>
+                <input className="input-f" type="number" min="1" placeholder="100" value={hppData.target} onChange={e=>setHppData(p=>({...p,target:e.target.value}))} style={{ maxWidth:'180px' }}/>
+                <span style={{ color:'rgba(255,255,255,.4)', fontSize:'.875rem' }}>unit / bulan</span>
+                <div style={{ display:'flex', gap:'6px' }}>
+                  {[50,100,500,1000].map(n=>(
+                    <button key={n} onClick={()=>setHppData(p=>({...p,target:String(n)}))} style={{ padding:'8px 12px', borderRadius:'8px', border:'1px solid', fontWeight:600, fontSize:'.75rem', cursor:'pointer', fontFamily:'inherit', background:hppData.target===String(n)?'rgba(37,211,102,.15)':'transparent', color:hppData.target===String(n)?'#25d366':'rgba(255,255,255,.4)', borderColor:hppData.target===String(n)?'rgba(37,211,102,.4)':'rgba(255,255,255,.1)' }}>{n}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button onClick={()=>setHppShowResult(true)} style={{ width:'100%', background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'16px', borderRadius:'14px', border:'none', fontWeight:800, fontSize:'1rem', cursor:'pointer', fontFamily:'inherit', letterSpacing:'-.3px' }}>
+              📊 Hitung HPP Sekarang
+            </button>
+          </div>
+
+          {/* Warning kosong */}
+          {hppShowResult && hppPerUnit===0 && (
+            <div style={{ background:'rgba(251,191,36,.07)', border:'1px solid rgba(251,191,36,.25)', borderRadius:'16px', padding:'24px', textAlign:'center', marginBottom:'20px' }}>
+              <div style={{ fontSize:'2rem', marginBottom:'8px' }}>⚠️</div>
+              <p style={{ fontWeight:700, marginBottom:'4px' }}>Isi biaya produk terlebih dahulu</p>
+              <p style={{ fontSize:'.82rem', color:'rgba(255,255,255,.45)' }}>Masukkan minimal satu komponen biaya untuk melihat hasil kalkulasi HPP.</p>
+            </div>
+          )}
+
+          {/* Hasil */}
+          {hppShowResult && hppPerUnit>0 && (
+            <div style={{ animation:'fadeUp .5s ease forwards' }}>
+
+              {/* HPP besar */}
+              <div style={{ background:'linear-gradient(135deg,rgba(37,211,102,.1),rgba(18,140,126,.07))', border:'1px solid rgba(37,211,102,.3)', borderRadius:'20px', padding:'32px', marginBottom:'16px', textAlign:'center' }}>
+                <p style={{ fontSize:'.75rem', fontWeight:700, color:'rgba(255,255,255,.5)', marginBottom:'8px', letterSpacing:'.08em' }}>HPP PER UNIT — {hppData.namaProduk?hppData.namaProduk.toUpperCase():'PRODUK KAMU'}</p>
+                <div style={{ fontSize:'3rem', fontWeight:800, color:'#25d366', letterSpacing:'-1px', marginBottom:'8px' }}>{fmt(Math.round(hppPerUnit))}</div>
+                <p style={{ fontSize:'.82rem', color:'rgba(255,255,255,.4)' }}>Modal produksi per bulan ({hppTargetNum} unit): <strong style={{ color:'rgba(255,255,255,.8)' }}>{fmt(Math.round(hppPerUnit*hppTargetNum))}</strong></p>
+              </div>
+
+              {/* Breakdown chart */}
+              <div style={{ background:'rgba(255,255,255,.03)', border:'1px solid rgba(255,255,255,.08)', borderRadius:'20px', padding:'28px', marginBottom:'16px' }}>
+                <h3 style={{ fontWeight:700, fontSize:'.95rem', marginBottom:'20px' }}>📊 Breakdown Komponen Biaya per Unit</h3>
+                {[
+                  { label:'Bahan Baku', value:hppBahanTotal, color:'#25d366' },
+                  { label:'Tenaga Kerja', value:hppTenagaNum, color:'#818cf8' },
+                  { label:'Overhead', value:hppOverheadTotal, color:'#fbbf24' },
+                  { label:'Packaging', value:hppPackagingNum, color:'#f87171' },
+                ].filter(c=>c.value>0).map(c=>{
+                  const pct=hppPerUnit>0?(c.value/hppPerUnit*100):0
+                  return (
+                    <div key={c.label} style={{ marginBottom:'14px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px' }}>
+                        <span style={{ fontSize:'.82rem', color:'rgba(255,255,255,.65)', fontWeight:600 }}>{c.label}</span>
+                        <span style={{ fontSize:'.82rem', fontWeight:700 }}>{fmt(Math.round(c.value))} <span style={{ color:'rgba(255,255,255,.35)', fontWeight:400, fontSize:'.75rem' }}>({pct.toFixed(1)}%)</span></span>
+                      </div>
+                      <div style={{ height:'10px', background:'rgba(255,255,255,.06)', borderRadius:'100px', overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:`${pct}%`, background:c.color, borderRadius:'100px' }}/>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* 3 Skenario Margin */}
+              <div className="hpp-scenario-grid">
+                {[
+                  { margin:20, label:'Minimum', badge:'MARGIN AMAN', bColor:'rgba(37,211,102,.15)', bText:'#25d366', border:'rgba(37,211,102,.25)', bg:'rgba(37,211,102,.05)', priceColor:'#25d366' },
+                  { margin:30, label:'Ideal ⭐', badge:'REKOMENDASI', bColor:'rgba(37,211,102,.25)', bText:'#25d366', border:'rgba(37,211,102,.4)', bg:'rgba(37,211,102,.09)', priceColor:'#25d366' },
+                  { margin:40, label:'Premium', badge:'TERBAIK', bColor:'rgba(129,140,248,.15)', bText:'#818cf8', border:'rgba(129,140,248,.35)', bg:'rgba(129,140,248,.06)', priceColor:'#818cf8' },
+                ].map(s=>{
+                  const hj=Math.round(hppPerUnit*(1+s.margin/100))
+                  const pu=hj-Math.round(hppPerUnit)
+                  const pb=pu*hppTargetNum
+                  const bepUnit=Math.ceil((hppPerUnit*hppTargetNum)/hj)
+                  const bepHari=Math.ceil(bepUnit/30)
+                  return (
+                    <div key={s.margin} style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:'18px', padding:'24px', position:'relative' }}>
+                      <div style={{ position:'absolute', top:'-11px', left:'50%', transform:'translateX(-50%)', background:s.bColor, border:`1px solid ${s.border}`, color:s.bText, padding:'3px 12px', borderRadius:'100px', fontSize:'.6rem', fontWeight:800, whiteSpace:'nowrap', letterSpacing:'.04em' }}>{s.badge}</div>
+                      <div style={{ textAlign:'center', marginBottom:'16px', paddingTop:'8px' }}>
+                        <div style={{ fontSize:'.72rem', color:'rgba(255,255,255,.45)', marginBottom:'4px', fontWeight:600 }}>Margin {s.margin}% · {s.label}</div>
+                        <div style={{ fontSize:'1.7rem', fontWeight:800, color:s.priceColor, letterSpacing:'-.5px' }}>{fmt(hj)}</div>
+                        <div style={{ fontSize:'.7rem', color:'rgba(255,255,255,.35)', marginTop:'2px' }}>harga jual per unit</div>
+                      </div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:'0' }}>
+                        {[
+                          ['💰 Untung/unit', fmt(pu)],
+                          ['📈 Untung/bulan', fmt(pb)],
+                          ['📦 BEP bulanan', `${bepUnit} unit`],
+                          ['📅 BEP harian', `${bepHari} unit/hari`],
+                        ].map(([l,v])=>(
+                          <div key={l} style={{ display:'flex', justifyContent:'space-between', fontSize:'.75rem', paddingTop:'10px', paddingBottom:'0', borderTop:'1px solid rgba(255,255,255,.06)', marginTop:'10px' }}>
+                            <span style={{ color:'rgba(255,255,255,.45)' }}>{l}</span>
+                            <span style={{ fontWeight:700, color:'rgba(255,255,255,.85)' }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* CTA */}
+              <div style={{ background:'rgba(37,211,102,.06)', border:'1px solid rgba(37,211,102,.2)', borderRadius:'20px', padding:'28px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'20px', flexWrap:'wrap' }}>
+                <div style={{ flex:1, minWidth:'240px' }}>
+                  <h3 style={{ fontWeight:800, fontSize:'1.05rem', marginBottom:'6px' }}>💾 Simpan & kelola produk ini di dashboard Mahirusaha</h3>
+                  <p style={{ fontSize:'.82rem', color:'rgba(255,255,255,.5)', lineHeight:1.65 }}>Setelah daftar, isi harga jual di katalog — bot WhatsApp otomatis infokan harga ke semua pelangganmu 24 jam.</p>
+                </div>
+                <div style={{ display:'flex', gap:'10px', alignItems:'center', flexWrap:'wrap' }}>
+                  <div className="hpp-tooltip-wrap">
+                    <button disabled style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.35)', padding:'12px 20px', borderRadius:'10px', fontWeight:700, fontSize:'.82rem', cursor:'not-allowed', fontFamily:'inherit', whiteSpace:'nowrap' }}>💾 Simpan ke Produk</button>
+                    <div className="hpp-tooltip">Login untuk menyimpan</div>
+                  </div>
+                  <a href="/daftar" style={{ display:'inline-flex', alignItems:'center', gap:'8px', background:'linear-gradient(135deg,#25d366,#128c7e)', color:'#fff', padding:'12px 24px', borderRadius:'10px', textDecoration:'none', fontWeight:700, fontSize:'.875rem', whiteSpace:'nowrap' }}>🚀 Daftar Gratis →</a>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
