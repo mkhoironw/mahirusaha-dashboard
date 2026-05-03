@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
+    if (order_id.startsWith('SAKUPAY-')) {
+      await fetch('https://sakupay-production.up.railway.app/api/topup/webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      return NextResponse.json({ ok: true }, { status: 200 })
+    }
+
     // Cek status pembayaran
     const isPaid =
       (transaction_status === 'capture' && fraud_status === 'accept') ||
